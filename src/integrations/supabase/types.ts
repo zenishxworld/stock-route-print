@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       daily_stock: {
         Row: {
+          auth_user_id: string
           created_at: string
           date: string
           id: string
@@ -23,9 +24,9 @@ export type Database = {
           stock: Json
           truck_id: string
           updated_at: string
-          user_id: string
         }
         Insert: {
+          auth_user_id: string
           created_at?: string
           date?: string
           id?: string
@@ -33,9 +34,9 @@ export type Database = {
           stock?: Json
           truck_id: string
           updated_at?: string
-          user_id: string
         }
         Update: {
+          auth_user_id?: string
           created_at?: string
           date?: string
           id?: string
@@ -43,7 +44,6 @@ export type Database = {
           stock?: Json
           truck_id?: string
           updated_at?: string
-          user_id?: string
         }
         Relationships: [
           {
@@ -58,13 +58,6 @@ export type Database = {
             columns: ["truck_id"]
             isOneToOne: false
             referencedRelation: "trucks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daily_stock_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -128,6 +121,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          auth_user_id: string
           created_at: string
           date: string
           id: string
@@ -137,9 +131,9 @@ export type Database = {
           total_amount: number
           truck_id: string
           updated_at: string
-          user_id: string
         }
         Insert: {
+          auth_user_id: string
           created_at?: string
           date?: string
           id?: string
@@ -149,9 +143,9 @@ export type Database = {
           total_amount: number
           truck_id: string
           updated_at?: string
-          user_id: string
         }
         Update: {
+          auth_user_id?: string
           created_at?: string
           date?: string
           id?: string
@@ -161,7 +155,6 @@ export type Database = {
           total_amount?: number
           truck_id?: string
           updated_at?: string
-          user_id?: string
         }
         Relationships: [
           {
@@ -176,13 +169,6 @@ export type Database = {
             columns: ["truck_id"]
             isOneToOne: false
             referencedRelation: "trucks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

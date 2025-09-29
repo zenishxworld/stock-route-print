@@ -24,7 +24,7 @@ const Dashboard = () => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        navigate("/login");
+        navigate("/auth");
         return;
       }
       setUser(user);
@@ -48,7 +48,7 @@ const Dashboard = () => {
       title: "Logged Out",
       description: "See you next time!",
     });
-    navigate("/login");
+    navigate("/auth");
   };
 
   const quickActions = [

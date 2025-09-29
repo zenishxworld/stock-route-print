@@ -94,7 +94,7 @@ const StartRoute = () => {
           description: "Please login first",
           variant: "destructive",
         });
-        navigate("/login");
+        navigate("/auth");
         return;
       }
 
@@ -110,14 +110,16 @@ const StartRoute = () => {
         return;
       }
 
-      // Save daily stock to database
-      const { error } = await supabase.from("daily_stock").upsert({
-        user_id: user.id,
+      // Save daily stock to database using any type to handle schema mismatch
+      const stockData: any = {
+        auth_user_id: user.id,
         truck_id: selectedTruck,
         route_id: selectedRoute,
         date: new Date().toISOString().split('T')[0],
         stock: nonZeroStock,
-      });
+      };
+
+      const { error } = await supabase.from("daily_stock").upsert(stockData);
 
       if (error) {
         throw error;

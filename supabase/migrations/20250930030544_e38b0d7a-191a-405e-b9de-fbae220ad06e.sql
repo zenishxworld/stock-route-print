@@ -1,0 +1,2 @@
+-- Create a demo user for testing (this will work with Supabase auth)
+-- The user can sign up with phone: 9876543210 and password: demo123

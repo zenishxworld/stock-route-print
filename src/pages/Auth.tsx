@@ -69,7 +69,6 @@ const Auth = () => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             name: name,
             phone: phone,
@@ -87,11 +86,21 @@ const Auth = () => {
       }
 
       if (data.user) {
-        toast({
-          title: "Account Created!",
-          description: "You can now sign in with your credentials",
-        });
-        setActiveTab("login");
+        // Auto login after signup if email confirmation is disabled
+        if (data.session) {
+          toast({
+            title: "Account Created!",
+            description: "Welcome aboard!",
+          });
+          navigate("/dashboard");
+        } else {
+          toast({
+            title: "Almost There!",
+            description: "Please check Supabase settings to disable email confirmation, then try signing in",
+            variant: "destructive",
+          });
+          setActiveTab("login");
+        }
         setPassword("");
       }
     } catch (error) {

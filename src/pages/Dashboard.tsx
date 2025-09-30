@@ -18,38 +18,29 @@ import {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>({ email: 'demo@driver.com' }); // Temporary mock user
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-      setUser(user);
-    };
+  // Temporarily disabled auth check
+  // useEffect(() => {
+  //   const getUser = async () => {
+  //     const { data: { user } } = await supabase.auth.getUser();
+  //     if (!user) {
+  //       navigate("/auth");
+  //       return;
+  //     }
+  //     setUser(user);
+  //   };
+  //   getUser();
+  // }, [navigate]);
 
-    getUser();
-  }, [navigate]);
-
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to logout",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+  const handleLogout = () => {
+    // Temporarily disabled logout
     toast({
-      title: "Logged Out",
-      description: "See you next time!",
+      title: "Info",
+      description: "Authentication is temporarily disabled",
     });
-    navigate("/auth");
   };
+
 
   const quickActions = [
     {

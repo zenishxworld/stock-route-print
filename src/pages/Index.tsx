@@ -14,7 +14,7 @@ const Index = () => {
         <p className="text-xl text-muted-foreground">Professional sales management for drivers and salesmen</p>
         <div className="space-y-4">
           <a 
-            href="/auth"
+            href="/dashboard"
             className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-business-blue to-business-blue-dark text-white font-semibold px-8 py-4 rounded-xl hover:shadow-medium transition-all duration-200 active:scale-[0.98]"
           >
             Get Started

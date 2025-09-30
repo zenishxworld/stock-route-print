@@ -20,6 +20,7 @@ interface SaleItem {
   quantity: number;
   price: number;
   total: number;
+  availableStock: number;
 }
 
 const ShopBilling = () => {
@@ -32,37 +33,111 @@ const ShopBilling = () => {
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [showBill, setShowBill] = useState(false);
+  const [currentRoute, setCurrentRoute] = useState("");
+  const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
-    fetchProducts();
+    // Get current route and date from localStorage
+    const route = localStorage.getItem('currentRoute');
+    const date = localStorage.getItem('currentDate') || new Date().toISOString().split('T')[0];
+    
+    if (!route) {
+      toast({
+        title: "No Active Route",
+        description: "Please start a route first",
+        variant: "destructive",
+      });
+      navigate('/start-route');
+      return;
+    }
+    
+    setCurrentRoute(route);
+    setCurrentDate(date);
+    fetchProductsAndStock(route, date);
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchProductsAndStock = async (route: string, date: string) => {
     try {
-      const { data, error } = await supabase
+      // Fetch products
+      const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*")
         .eq("status", "active");
 
-      if (error) throw error;
-      
-      if (data) {
-        setProducts(data);
-        // Initialize sale items with all products at 0 quantity
-        setSaleItems(
-          data.map(product => ({
-            productId: product.id,
-            productName: product.name,
-            quantity: 0,
-            price: product.price,
-            total: 0,
-          }))
-        );
+      if (productsError) throw productsError;
+      if (!productsData) return;
+
+      setProducts(productsData);
+
+      // Fetch initial stock for today
+      const { data: stockData, error: stockError } = await supabase
+        .from("daily_stock")
+        .select("*")
+        .eq("route_id", route)
+        .eq("date", date)
+        .maybeSingle();
+
+      if (stockError && stockError.code !== 'PGRST116') throw stockError;
+
+      // Fetch all sales for today to calculate remaining stock
+      const { data: salesData, error: salesError } = await supabase
+        .from("sales")
+        .select("*")
+        .eq("route_id", route)
+        .eq("date", date);
+
+      if (salesError && salesError.code !== 'PGRST116') throw salesError;
+
+      // Calculate remaining stock for each product
+      const saleItemsWithStock = productsData.map(product => {
+        // Get initial stock
+        let initialStock = 0;
+        if (stockData && stockData.stock) {
+          const stockItem = (stockData.stock as any[]).find(
+            (s: any) => s.productId === product.id
+          );
+          initialStock = stockItem?.quantity || 0;
+        }
+
+        // Calculate total sold
+        let totalSold = 0;
+        if (salesData) {
+          salesData.forEach(sale => {
+            if (sale.products_sold) {
+              const saleItem = (sale.products_sold as any[]).find(
+                (p: any) => p.productId === product.id
+              );
+              totalSold += saleItem?.quantity || 0;
+            }
+          });
+        }
+
+        const availableStock = initialStock - totalSold;
+
+        return {
+          productId: product.id,
+          productName: product.name,
+          quantity: 0,
+          price: product.price,
+          total: 0,
+          availableStock: Math.max(0, availableStock),
+        };
+      });
+
+      setSaleItems(saleItemsWithStock);
+
+      // Show warning if no stock was set
+      if (!stockData) {
+        toast({
+          title: "No Stock Set",
+          description: "Please set initial stock for today's route first",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to load products",
+        description: "Failed to load products and stock",
         variant: "destructive",
       });
     }
@@ -70,29 +145,33 @@ const ShopBilling = () => {
 
   const updateQuantity = (productId: string, change: number) => {
     setSaleItems(prev =>
-      prev.map(item =>
-        item.productId === productId
-          ? {
-              ...item,
-              quantity: Math.max(0, item.quantity + change),
-              total: Math.max(0, item.quantity + change) * item.price,
-            }
-          : item
-      )
+      prev.map(item => {
+        if (item.productId === productId) {
+          const newQuantity = Math.max(0, Math.min(item.availableStock, item.quantity + change));
+          return {
+            ...item,
+            quantity: newQuantity,
+            total: newQuantity * item.price,
+          };
+        }
+        return item;
+      })
     );
   };
 
   const setQuantityDirect = (productId: string, quantity: number) => {
     setSaleItems(prev =>
-      prev.map(item =>
-        item.productId === productId
-          ? {
-              ...item,
-              quantity: Math.max(0, quantity),
-              total: Math.max(0, quantity) * item.price,
-            }
-          : item
-      )
+      prev.map(item => {
+        if (item.productId === productId) {
+          const newQuantity = Math.max(0, Math.min(item.availableStock, quantity));
+          return {
+            ...item,
+            quantity: newQuantity,
+            total: newQuantity * item.price,
+          };
+        }
+        return item;
+      })
     );
   };
 
@@ -138,7 +217,7 @@ const ShopBilling = () => {
       const saleData = {
         auth_user_id: mockUserId,
         shop_name: shopName,
-        date: new Date().toISOString().split('T')[0],
+        date: currentDate,
         products_sold: soldItems.map(item => ({
           productId: item.productId,
           productName: item.productName,
@@ -147,13 +226,12 @@ const ShopBilling = () => {
           total: item.total,
         })),
         total_amount: calculateTotal(),
-        route_id: "00000000-0000-0000-0000-000000000000", // Will be updated when route tracking is implemented
-        truck_id: "00000000-0000-0000-0000-000000000000", // Will be updated when truck tracking is implemented
+        route_id: currentRoute,
+        truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
       };
 
-      // Temporarily skip database save - just show success
-      // const { error } = await supabase.from("sales").insert(saleData);
-      const error = null; // Mock success
+      // Save sale to database
+      const { error } = await supabase.from("sales").insert(saleData);
 
       if (error) {
         throw error;
@@ -167,17 +245,12 @@ const ShopBilling = () => {
         description: "Bill printed and sale recorded successfully",
       });
 
-      // Reset form after successful print
+      // Reset form and refresh stock after successful print
       setTimeout(() => {
         setShopName("");
-        setSaleItems(prev =>
-          prev.map(item => ({
-            ...item,
-            quantity: 0,
-            total: 0,
-          }))
-        );
         setShowBill(false);
+        // Refresh stock to get updated available quantities
+        fetchProductsAndStock(currentRoute, currentDate);
       }, 500);
     } catch (error: any) {
       toast({
@@ -264,14 +337,27 @@ const ShopBilling = () => {
                     {products.map((product) => {
                       const saleItem = saleItems.find(s => s.productId === product.id);
                       const quantity = saleItem?.quantity || 0;
+                      const availableStock = saleItem?.availableStock || 0;
                       
                       return (
-                        <Card key={product.id} className="border border-border hover:border-primary/50 transition-colors active:border-primary">
+                        <Card key={product.id} className={`border transition-colors active:border-primary ${
+                          availableStock === 0 ? 'border-destructive/50 opacity-60' : 'border-border hover:border-primary/50'
+                        }`}>
                           <CardContent className="p-3 sm:p-4">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-foreground text-base">{product.name}</h4>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-foreground text-base">{product.name}</h4>
+                                  {availableStock === 0 && (
+                                    <span className="text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded">
+                                      Out of Stock
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} per unit</p>
+                                <p className="text-sm font-semibold text-warning mt-1">
+                                  Available: {availableStock} units
+                                </p>
                                 {quantity > 0 && (
                                   <p className="text-sm font-semibold text-success-green mt-1">
                                     Total: ₹{(quantity * product.price).toFixed(2)}
@@ -298,9 +384,11 @@ const ShopBilling = () => {
                                     const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
                                     setQuantityDirect(product.id, newQuantity);
                                   }}
+                                  max={availableStock}
                                   className="w-16 sm:w-20 text-center text-base h-10 sm:h-9"
                                   min="0"
                                   inputMode="numeric"
+                                  disabled={availableStock === 0}
                                 />
                                 
                                 <Button
@@ -308,6 +396,7 @@ const ShopBilling = () => {
                                   variant="outline"
                                   size="icon"
                                   onClick={() => updateQuantity(product.id, 1)}
+                                  disabled={quantity >= availableStock || availableStock === 0}
                                   className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation"
                                 >
                                   <Plus className="w-5 h-5 sm:w-4 sm:h-4" />

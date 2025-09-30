@@ -40,6 +40,12 @@ const StartRoute = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (selectedRoute) {
+      checkExistingStock();
+    }
+  }, [selectedRoute]);
+
   const fetchData = async () => {
     try {
       // Fetch products and routes
@@ -61,6 +67,42 @@ const StartRoute = () => {
         description: "Failed to load data",
         variant: "destructive",
       });
+    }
+  };
+
+  const checkExistingStock = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from("daily_stock")
+        .select("*")
+        .eq("route_id", selectedRoute)
+        .eq("date", today)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        // Stock already exists for today
+        toast({
+          title: "Stock Already Set",
+          description: "Initial stock for this route has already been set today. Loading existing stock...",
+        });
+        
+        // Load existing stock
+        if (data.stock && Array.isArray(data.stock)) {
+          setStock(prev => 
+            prev.map(item => {
+              const existingItem = (data.stock as any[]).find(
+                (s: any) => s.productId === item.productId
+              );
+              return existingItem ? { ...item, quantity: existingItem.quantity } : item;
+            })
+          );
+        }
+      }
+    } catch (error: any) {
+      console.error("Error checking existing stock:", error);
     }
   };
 
@@ -94,21 +136,47 @@ const StartRoute = () => {
         return;
       }
 
-      // Save daily stock to database using mock user ID
+      const today = new Date().toISOString().split('T')[0];
+
+      // Check if stock already exists for today
+      const { data: existingStock } = await supabase
+        .from("daily_stock")
+        .select("id")
+        .eq("route_id", selectedRoute)
+        .eq("date", today)
+        .maybeSingle();
+
+      // Save daily stock to database
       const stockData: any = {
         auth_user_id: mockUserId,
         route_id: selectedRoute,
-        date: new Date().toISOString().split('T')[0],
+        date: today,
         stock: nonZeroStock,
       };
 
-      // Temporarily skip database save - just show success
-      // const { error } = await supabase.from("daily_stock").upsert(stockData);
-      const error = null; // Mock success
+      let error;
+      if (existingStock) {
+        // Update existing stock
+        const { error: updateError } = await supabase
+          .from("daily_stock")
+          .update(stockData)
+          .eq("id", existingStock.id);
+        error = updateError;
+      } else {
+        // Insert new stock
+        const { error: insertError } = await supabase
+          .from("daily_stock")
+          .insert(stockData);
+        error = insertError;
+      }
 
       if (error) {
         throw error;
       }
+
+      // Store route in localStorage for use in other pages
+      localStorage.setItem('currentRoute', selectedRoute);
+      localStorage.setItem('currentDate', today);
 
       toast({
         title: "Route Started!",

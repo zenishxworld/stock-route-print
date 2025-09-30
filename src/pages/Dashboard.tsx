@@ -104,36 +104,9 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-safe">
         {/* Welcome Section */}
-        <div className="mb-4 sm:mb-6">
+        <div className="mb-6 sm:mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 sm:mb-2">Welcome Back!</h2>
           <p className="text-muted-foreground text-sm sm:text-base">Ready to start your delivery route today?</p>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <Card className="border-0 shadow-soft bg-gradient-to-r from-primary-light to-primary-light/80">
-            <CardContent className="p-3 sm:p-4 text-center">
-              <Package className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2 text-primary" />
-              <p className="text-xl sm:text-2xl font-bold text-primary">6</p>
-              <p className="text-xs sm:text-sm text-primary/80">Products</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-0 shadow-soft bg-gradient-to-r from-success-green-light to-success-green-light/80">
-            <CardContent className="p-3 sm:p-4 text-center">
-              <Route className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2 text-success-green" />
-              <p className="text-xl sm:text-2xl font-bold text-success-green">4</p>
-              <p className="text-xs sm:text-sm text-success-green/80">Routes</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-soft bg-gradient-to-r from-accent-light to-accent-light/80">
-            <CardContent className="p-3 sm:p-4 text-center">
-              <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2 text-accent" />
-              <p className="text-xl sm:text-2xl font-bold text-accent">₹0</p>
-              <p className="text-xs sm:text-sm text-accent/80">Sales</p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Quick Actions */}

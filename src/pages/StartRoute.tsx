@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Route, Truck, Package, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Route, Package, Plus, Minus } from "lucide-react";
 
 interface Product {
   id: string;
@@ -20,10 +20,6 @@ interface RouteOption {
   name: string;
 }
 
-interface TruckOption {
-  id: string;
-  name: string;
-}
 
 interface StockItem {
   productId: string;
@@ -35,10 +31,8 @@ const StartRoute = () => {
   const { toast } = useToast();
   
   const [selectedRoute, setSelectedRoute] = useState("");
-  const [selectedTruck, setSelectedTruck] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
-  const [trucks, setTrucks] = useState<TruckOption[]>([]);
   const [stock, setStock] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -48,11 +42,10 @@ const StartRoute = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch products, routes, and trucks
-      const [productsRes, routesRes, trucksRes] = await Promise.all([
+      // Fetch products and routes
+      const [productsRes, routesRes] = await Promise.all([
         supabase.from("products").select("*").eq("status", "active"),
         supabase.from("routes").select("*").eq("is_active", true),
-        supabase.from("trucks").select("*").eq("is_active", true),
       ]);
 
       if (productsRes.data) {
@@ -62,7 +55,6 @@ const StartRoute = () => {
       }
       
       if (routesRes.data) setRoutes(routesRes.data);
-      if (trucksRes.data) setTrucks(trucksRes.data);
     } catch (error) {
       toast({
         title: "Error",
@@ -105,7 +97,6 @@ const StartRoute = () => {
       // Save daily stock to database using mock user ID
       const stockData: any = {
         auth_user_id: mockUserId,
-        truck_id: selectedTruck,
         route_id: selectedRoute,
         date: new Date().toISOString().split('T')[0],
         stock: nonZeroStock,
@@ -141,112 +132,92 @@ const StartRoute = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-primary-light/10">
       {/* Header */}
-      <header className="bg-card/95 backdrop-blur-sm border-b border-border shadow-soft">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4" />
+      <header className="bg-card/95 backdrop-blur-sm border-b border-border shadow-soft sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="h-9 w-9 p-0">
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-business-blue to-business-blue-dark rounded-xl flex items-center justify-center">
-                <Route className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-business-blue to-business-blue-dark rounded-lg sm:rounded-xl flex items-center justify-center">
+                <Route className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Start Route</h1>
-                <p className="text-sm text-muted-foreground">Setup your daily inventory</p>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground">Start Route</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground hidden xs:block">Setup your daily inventory</p>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-safe">
         <Card className="border-0 shadow-strong">
-          <CardHeader className="text-center pb-6">
-            <CardTitle className="text-2xl font-bold">Route Configuration</CardTitle>
-            <CardDescription className="text-base">
-              Select your truck, route, and set initial stock levels
+          <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl font-bold">Route Configuration</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
+              Select your route and set initial stock levels
             </CardDescription>
           </CardHeader>
           
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Route and Truck Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <Route className="w-4 h-4" />
-                    Select Route
-                  </Label>
-                  <Select value={selectedRoute} onValueChange={setSelectedRoute} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose your route" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {routes.map((route) => (
-                        <SelectItem key={route.id} value={route.id}>
-                          {route.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <Truck className="w-4 h-4" />
-                    Select Truck
-                  </Label>
-                  <Select value={selectedTruck} onValueChange={setSelectedTruck} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose your truck" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {trucks.map((truck) => (
-                        <SelectItem key={truck.id} value={truck.id}>
-                          {truck.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          <CardContent className="px-4 sm:px-6">
+            <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+              {/* Route Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                  <Route className="w-4 h-4" />
+                  Select Route
+                </Label>
+                <Select value={selectedRoute} onValueChange={setSelectedRoute} required>
+                  <SelectTrigger className="h-11 sm:h-10 text-base">
+                    <SelectValue placeholder="Choose your route" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {routes.map((route) => (
+                      <SelectItem key={route.id} value={route.id} className="text-base py-3">
+                        {route.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Stock Configuration */}
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-lg font-semibold flex items-center gap-2">
-                    <Package className="w-5 h-5" />
+                  <Label className="text-base sm:text-lg font-semibold flex items-center gap-2">
+                    <Package className="w-4 h-4 sm:w-5 sm:h-5" />
                     Initial Stock
                   </Label>
-                  <div className="text-sm text-muted-foreground">
-                    Total: <span className="font-semibold text-primary">{totalProducts}</span> items
+                  <div className="text-xs sm:text-sm text-muted-foreground">
+                    Total: <span className="font-semibold text-primary">{totalProducts}</span>
                   </div>
                 </div>
 
-                <div className="grid gap-4">
+                <div className="grid gap-3 sm:gap-4">
                   {products.map((product) => {
                     const stockItem = stock.find(s => s.productId === product.id);
                     const quantity = stockItem?.quantity || 0;
                     
                     return (
-                      <Card key={product.id} className="border border-border hover:border-primary/50 transition-colors">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-foreground">{product.name}</h4>
+                      <Card key={product.id} className="border border-border hover:border-primary/50 transition-colors active:border-primary">
+                        <CardContent className="p-3 sm:p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-foreground text-base">{product.name}</h4>
                               <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} per unit</p>
                             </div>
                             
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 justify-end sm:justify-start">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="icon"
                                 onClick={() => updateStock(product.id, -1)}
                                 disabled={quantity === 0}
+                                className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation"
                               >
-                                <Minus className="w-4 h-4" />
+                                <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
                               </Button>
                               
                               <Input
@@ -262,8 +233,9 @@ const StartRoute = () => {
                                     )
                                   );
                                 }}
-                                className="w-20 text-center"
+                                className="w-16 sm:w-20 text-center text-base h-10 sm:h-9"
                                 min="0"
+                                inputMode="numeric"
                               />
                               
                               <Button
@@ -271,8 +243,9 @@ const StartRoute = () => {
                                 variant="outline"
                                 size="icon"
                                 onClick={() => updateStock(product.id, 1)}
+                                className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation"
                               >
-                                <Plus className="w-4 h-4" />
+                                <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
                               </Button>
                             </div>
                           </div>
@@ -287,8 +260,8 @@ const StartRoute = () => {
                 type="submit"
                 variant="success"
                 size="lg"
-                className="w-full"
-                disabled={loading || !selectedRoute || !selectedTruck || totalProducts === 0}
+                className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation"
+                disabled={loading || !selectedRoute || totalProducts === 0}
               >
                 {loading ? "Starting Route..." : "Start Route"}
               </Button>

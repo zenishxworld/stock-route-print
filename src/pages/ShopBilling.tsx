@@ -34,6 +34,7 @@ const ShopBilling = () => {
   const [loading, setLoading] = useState(false);
   const [showBill, setShowBill] = useState(false);
   const [currentRoute, setCurrentRoute] = useState("");
+  const [currentRouteName, setCurrentRouteName] = useState("");
   const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
@@ -58,6 +59,18 @@ const ShopBilling = () => {
 
   const fetchProductsAndStock = async (route: string, date: string) => {
     try {
+      // Fetch route name
+      const { data: routeData, error: routeError } = await supabase
+        .from("routes")
+        .select("name")
+        .eq("id", route)
+        .single();
+
+      if (routeError) throw routeError;
+      if (routeData) {
+        setCurrentRouteName(routeData.name);
+      }
+
       // Fetch products
       const { data: productsData, error: productsError } = await supabase
         .from("products")
@@ -275,19 +288,27 @@ const ShopBilling = () => {
       {/* Header - Hidden when printing */}
       <header className="bg-card/95 backdrop-blur-sm border-b border-border shadow-soft sticky top-0 z-10 print:hidden">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="h-9 w-9 p-0">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-success-green to-accent rounded-lg sm:rounded-xl flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold text-foreground">Shop Billing</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground hidden xs:block">Create bills for shop sales</p>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="h-9 w-9 p-0">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-success-green to-accent rounded-lg sm:rounded-xl flex items-center justify-center">
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl font-bold text-foreground">Shop Billing</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground hidden xs:block">Create bills for shop sales</p>
+                </div>
               </div>
             </div>
+            {currentRouteName && (
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Route</p>
+                <p className="text-sm sm:text-base font-semibold text-primary">{currentRouteName}</p>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -301,6 +322,13 @@ const ShopBilling = () => {
               <CardDescription className="text-sm sm:text-base">
                 Enter shop details and select products
               </CardDescription>
+              {currentRouteName && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-sm font-semibold text-primary">
+                    📍 Route: {currentRouteName}
+                  </p>
+                </div>
+              )}
             </CardHeader>
             
             <CardContent className="px-4 sm:px-6">
@@ -476,14 +504,17 @@ const ShopBilling = () => {
                   <div className="text-center mb-6 print:mb-4">
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-xl">Cold Drink Sales</h1>
                     <p className="text-sm text-muted-foreground print:text-xs">Sales Invoice</p>
-                    <div className="mt-2 text-xs text-muted-foreground print:text-[10px]">
-                      Date: {new Date().toLocaleDateString('en-IN', { 
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground print:text-[10px]">
+                      <p>Date: {new Date().toLocaleDateString('en-IN', { 
                         day: '2-digit', 
                         month: 'short', 
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
-                      })}
+                      })}</p>
+                      {currentRouteName && (
+                        <p className="font-semibold text-primary">Route: {currentRouteName}</p>
+                      )}
                     </div>
                   </div>
 

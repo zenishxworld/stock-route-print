@@ -23,11 +23,8 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // For demo purposes, using phone as email format for Supabase auth
-      const email = `${phone}@colddrink.com`;
-      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        phone,
         password,
       });
 
@@ -63,10 +60,8 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const email = `${phone}@colddrink.com`;
-      
       const { data, error } = await supabase.auth.signUp({
-        email,
+        phone,
         password,
         options: {
           data: {
@@ -94,12 +89,22 @@ const Auth = () => {
           });
           navigate("/dashboard");
         } else {
-          toast({
-            title: "Almost There!",
-            description: "Please check Supabase settings to disable email confirmation, then try signing in",
-            variant: "destructive",
+          // Try immediate sign-in (works if phone confirmations are disabled)
+          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+            phone,
+            password,
           });
-          setActiveTab("login");
+          if (loginError) {
+            toast({
+              title: "Almost There!",
+              description: "Enable Phone provider and disable phone confirmation in Supabase Auth settings.",
+              variant: "destructive",
+            });
+            setActiveTab("login");
+          } else if (loginData?.user) {
+            toast({ title: "Account Created!", description: "Welcome aboard!" });
+            navigate("/dashboard");
+          }
         }
         setPassword("");
       }

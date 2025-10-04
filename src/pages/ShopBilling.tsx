@@ -335,7 +335,7 @@ const ShopBilling = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-safe">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-20 sm:pb-safe">
         {!showBill ? (
           // Billing Form
           <Card className="border-0 shadow-strong">
@@ -502,16 +502,18 @@ const ShopBilling = () => {
                 </div>
 
                 {/* Generate Bill Button */}
-                <Button
-                  onClick={handleGenerateBill}
-                  variant="success"
-                  size="lg"
-                  className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation"
-                  disabled={!shopName.trim() || !isValidForBilling()}
-                >
-                  <Check className="w-5 h-5 mr-2" />
-                  Generate Bill
-                </Button>
+                <div className="sticky bottom-4 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-2 sm:p-0 -mx-2 sm:mx-0 rounded-lg sm:rounded-none">
+                  <Button
+                    onClick={handleGenerateBill}
+                    variant="success"
+                    size="lg"
+                    className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation shadow-lg sm:shadow-none"
+                    disabled={!shopName.trim() || !isValidForBilling()}
+                  >
+                    <Check className="w-5 h-5 mr-2" />
+                    Generate Bill
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -528,25 +530,27 @@ const ShopBilling = () => {
               </CardHeader>
               
               <CardContent className="px-4 sm:px-6 space-y-4">
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handlePrintBill}
-                    variant="success"
-                    size="lg"
-                    className="flex-1 h-12 sm:h-11 text-base font-semibold touch-manipulation"
-                    disabled={loading}
-                  >
-                    <Printer className="w-5 h-5 mr-2" />
-                    {loading ? "Printing..." : "Print Bill"}
-                  </Button>
-                  <Button
-                    onClick={handleBackToForm}
-                    variant="outline"
-                    size="lg"
-                    className="h-12 sm:h-11 px-6 touch-manipulation"
-                  >
-                    Edit
-                  </Button>
+                <div className="sticky bottom-4 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-2 sm:p-0 -mx-2 sm:mx-0 rounded-lg sm:rounded-none">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      onClick={handlePrintBill}
+                      variant="success"
+                      size="lg"
+                      className="flex-1 h-12 sm:h-11 text-base font-semibold touch-manipulation w-full sm:w-auto shadow-lg sm:shadow-none"
+                      disabled={loading}
+                    >
+                      <Printer className="w-5 h-5 mr-2" />
+                      {loading ? "Printing..." : "Print Bill"}
+                    </Button>
+                    <Button
+                      onClick={handleBackToForm}
+                      variant="outline"
+                      size="lg"
+                      className="h-12 sm:h-11 px-6 touch-manipulation w-full sm:w-auto shadow-lg sm:shadow-none"
+                    >
+                      Edit
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -133,7 +133,7 @@ const StartRoute = () => {
     setStock(prev => 
       prev.map(item => 
         item.productId === productId 
-          ? { ...item, quantity: Math.max(0, item.quantity + change) }
+          ? { ...item, quantity: Math.max(0, item.quantity + (change * 5)) }
           : item
       )
     );

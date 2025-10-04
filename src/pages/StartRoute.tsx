@@ -5,9 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Route, Package, Plus, Minus } from "lucide-react";
+import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
+import { ArrowLeft, Route, Package, Plus, Minus, Trash2 } from "lucide-react";
 
 interface Product {
   id: string;
@@ -18,6 +21,7 @@ interface Product {
 interface RouteOption {
   id: string;
   name: string;
+  displayName?: string;
 }
 
 
@@ -37,6 +41,10 @@ const StartRoute = () => {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [stock, setStock] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showNewRouteDialog, setShowNewRouteDialog] = useState(false);
+  const [newRouteName, setNewRouteName] = useState("");
+  const [creatingRoute, setCreatingRoute] = useState(false);
+  const [deletingRoute, setDeletingRoute] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -83,7 +91,17 @@ const StartRoute = () => {
         setStock(productsRes.data.map(product => ({ productId: product.id, quantity: 0 })));
       }
       
-      if (routesRes.data) setRoutes(routesRes.data);
+      if (routesRes.data) {
+        // Map old route names to new Route 1, 2, 3 format and filter out hidden routes
+        const mappedRoutes = routesRes.data
+          .filter(route => shouldDisplayRoute(route.name))
+          .map(route => ({
+            ...route,
+            displayName: mapRouteName(route.name)
+          }));
+        
+        setRoutes(mappedRoutes);
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -137,6 +155,88 @@ const StartRoute = () => {
           : item
       )
     );
+  };
+
+  const createNewRoute = async () => {
+    if (!newRouteName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a route name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingRoute(true);
+    try {
+      const { data, error } = await supabase
+        .from("routes")
+        .insert({
+          name: newRouteName.trim(),
+          description: `Custom route: ${newRouteName.trim()}`,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add the new route to the local state
+      setRoutes(prev => [...prev, { id: data.id, name: data.name, displayName: data.name }]);
+      
+      // Select the newly created route
+      setSelectedRoute(data.id);
+      
+      // Close dialog and reset form
+      setShowNewRouteDialog(false);
+      setNewRouteName("");
+      
+      toast({
+        title: "Success!",
+        description: `Route "${data.name}" created successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create route",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingRoute(false);
+    }
+  };
+
+  const deleteRoute = async (routeId: string) => {
+    setDeletingRoute(true);
+    try {
+      const { error } = await supabase
+        .from("routes")
+        .delete()
+        .eq("id", routeId);
+
+      if (error) throw error;
+
+      // Remove the route from local state
+      setRoutes(prev => prev.filter(route => route.id !== routeId));
+      
+      // If the deleted route was selected, clear selection
+      if (selectedRoute === routeId) {
+        setSelectedRoute("");
+      }
+      
+      toast({
+        title: "Success!",
+        description: "Route deleted successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete route",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingRoute(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -278,18 +378,116 @@ const StartRoute = () => {
                   <Route className="w-4 h-4" />
                   Select Route
                 </Label>
-                <Select value={selectedRoute} onValueChange={setSelectedRoute} required>
-                  <SelectTrigger className="h-11 sm:h-10 text-base">
-                    <SelectValue placeholder="Choose your route" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {routes.map((route) => (
-                      <SelectItem key={route.id} value={route.id} className="text-base py-3">
-                        {route.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={selectedRoute} onValueChange={setSelectedRoute} required>
+                    <SelectTrigger className="h-11 sm:h-10 text-base flex-1">
+                      <SelectValue placeholder="Choose your route" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {routes.map((route) => {
+                        const isCustomRoute = !['Route 1', 'Route 2', 'Route 3'].includes(route.displayName || route.name);
+                        return (
+                          <div key={route.id} className="flex items-center justify-between group">
+                            <SelectItem value={route.id} className="text-base py-3 flex-1">
+                              {route.displayName || route.name}
+                            </SelectItem>
+                            {isCustomRoute && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity mr-2"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Route</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{route.displayName || route.name}"? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteRoute(route.id)}
+                                      disabled={deletingRoute}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      {deletingRoute ? "Deleting..." : "Delete"}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Dialog open={showNewRouteDialog} onOpenChange={setShowNewRouteDialog}>
+                    <DialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-11 sm:h-10 w-11 sm:w-10 flex-shrink-0"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Create New Route</DialogTitle>
+                        <DialogDescription>
+                          Add a new route to your system. It will be available for immediate use.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="route-name">Route Name</Label>
+                          <Input
+                            id="route-name"
+                            placeholder="e.g., Route 4, Route 5..."
+                            value={newRouteName}
+                            onChange={(e) => setNewRouteName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                createNewRoute();
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setShowNewRouteDialog(false);
+                              setNewRouteName("");
+                            }}
+                            disabled={creatingRoute}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={createNewRoute}
+                            disabled={creatingRoute || !newRouteName.trim()}
+                          >
+                            {creatingRoute ? "Creating..." : "Create Route"}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
 
               {/* Stock Configuration */}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { mapRouteName } from "@/lib/routeUtils";
 import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check } from "lucide-react";
 
 interface Product {
@@ -68,7 +69,7 @@ const ShopBilling = () => {
 
       if (routeError) throw routeError;
       if (routeData) {
-        setCurrentRouteName(routeData.name);
+        setCurrentRouteName(mapRouteName(routeData.name));
       }
 
       // Fetch products

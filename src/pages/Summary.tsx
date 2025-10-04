@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
 import { ArrowLeft, BarChart3, Printer, Calendar, TrendingUp, Package, DollarSign } from "lucide-react";
 
 interface Product {
@@ -52,7 +53,16 @@ const Summary = () => {
         .eq("is_active", true);
 
       if (error) throw error;
-      if (data) setRoutes(data);
+      if (data) {
+        // Apply mapping and filtering to routes before setting state
+        const mappedAndFilteredRoutes = data
+          .filter(route => shouldDisplayRoute(route.name))
+          .map(route => ({
+            ...route,
+            name: mapRouteName(route.name), // Apply the mapping here
+          }));
+        setRoutes(mappedAndFilteredRoutes);
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -180,7 +190,9 @@ const Summary = () => {
 
   const getRouteName = () => {
     const route = routes.find(r => r.id === selectedRoute);
-    return route?.name || "Unknown Route";
+    if (!route) return "Unknown Route";
+    
+    return mapRouteName(route.name);
   };
 
   return (

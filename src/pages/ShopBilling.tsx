@@ -188,12 +188,35 @@ const ShopBilling = () => {
     );
   };
 
+  const updatePrice = (productId: string, newPrice: number) => {
+    setSaleItems(prev =>
+      prev.map(item => {
+        if (item.productId === productId) {
+          const validPrice = Math.max(1, newPrice); // Ensure price >= 1
+          return {
+            ...item,
+            price: validPrice,
+            total: item.quantity * validPrice,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   const calculateTotal = () => {
     return saleItems.reduce((sum, item) => sum + item.total, 0);
   };
 
   const getSoldItems = () => {
     return saleItems.filter(item => item.quantity > 0);
+  };
+
+  const isValidForBilling = () => {
+    const soldItems = getSoldItems();
+    return soldItems.length > 0 && soldItems.every(item => 
+      item.quantity > 0 && item.price >= 1
+    );
   };
 
   const handleGenerateBill = () => {
@@ -206,11 +229,10 @@ const ShopBilling = () => {
       return;
     }
 
-    const soldItems = getSoldItems();
-    if (soldItems.length === 0) {
+    if (!isValidForBilling()) {
       toast({
         title: "Error",
-        description: "Please add at least one product",
+        description: "Please add at least one product with valid quantity and price (≥₹1)",
         variant: "destructive",
       });
       return;
@@ -372,63 +394,96 @@ const ShopBilling = () => {
                           availableStock === 0 ? 'border-destructive/50 opacity-60' : 'border-border hover:border-primary/50'
                         }`}>
                           <CardContent className="p-3 sm:p-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-semibold text-foreground text-base">{product.name}</h4>
-                                  {availableStock === 0 && (
-                                    <span className="text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded">
-                                      Out of Stock
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} per unit</p>
-                                <p className="text-sm font-semibold text-warning mt-1">
-                                  Available: {availableStock} units
-                                </p>
-                                {quantity > 0 && (
-                                  <p className="text-sm font-semibold text-success-green mt-1">
-                                    Total: ₹{(quantity * product.price).toFixed(2)}
-                                  </p>
+                            <div className="space-y-3">
+                              {/* Product Info */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className="font-semibold text-foreground text-base">{product.name}</h4>
+                                {availableStock === 0 && (
+                                  <span className="text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded">
+                                    Out of Stock
+                                  </span>
                                 )}
                               </div>
                               
-                              <div className="flex items-center gap-2 sm:gap-3 justify-end sm:justify-start">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => updateQuantity(product.id, -1)}
-                                  disabled={quantity === 0}
-                                  className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation"
-                                >
-                                  <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
-                                </Button>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {/* Price Input */}
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-medium text-muted-foreground">Unit Price (₹)</Label>
+                                  <Input
+                                    type="number"
+                                    value={saleItem?.price || product.price}
+                                    onChange={(e) => {
+                                      const newPrice = parseFloat(e.target.value) || product.price;
+                                      updatePrice(product.id, newPrice);
+                                    }}
+                                    className="h-9 text-sm"
+                                    min="1"
+                                    step="0.01"
+                                    disabled={availableStock === 0}
+                                    placeholder={`${product.price}`}
+                                  />
+                                  <p className="text-xs text-muted-foreground">
+                                    Default: ₹{product.price.toFixed(2)}
+                                  </p>
+                                </div>
                                 
-                                <Input
-                                  type="number"
-                                  value={quantity}
-                                  onChange={(e) => {
-                                    const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
-                                    setQuantityDirect(product.id, newQuantity);
-                                  }}
-                                  max={availableStock}
-                                  className="w-16 sm:w-20 text-center text-base h-10 sm:h-9"
-                                  min="0"
-                                  inputMode="numeric"
-                                  disabled={availableStock === 0}
-                                />
-                                
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => updateQuantity(product.id, 1)}
-                                  disabled={quantity >= availableStock || availableStock === 0}
-                                  className="h-10 w-10 sm:h-9 sm:w-9 touch-manipulation"
-                                >
-                                  <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
-                                </Button>
+                                {/* Quantity Controls */}
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => updateQuantity(product.id, -1)}
+                                      disabled={quantity === 0}
+                                      className="h-9 w-9 touch-manipulation"
+                                    >
+                                      <Minus className="w-4 h-4" />
+                                    </Button>
+                                    
+                                    <Input
+                                      type="number"
+                                      value={quantity}
+                                      onChange={(e) => {
+                                        const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
+                                        setQuantityDirect(product.id, newQuantity);
+                                      }}
+                                      max={availableStock}
+                                      className="w-16 text-center text-sm h-9"
+                                      min="0"
+                                      inputMode="numeric"
+                                      disabled={availableStock === 0}
+                                    />
+                                    
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => updateQuantity(product.id, 1)}
+                                      disabled={quantity >= availableStock || availableStock === 0}
+                                      className="h-9 w-9 touch-manipulation"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Stock and Total Info */}
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-semibold text-warning">
+                                    Available: {availableStock} units
+                                  </p>
+                                </div>
+                                {quantity > 0 && (
+                                  <div className="text-right">
+                                    <p className="text-sm font-semibold text-success-green">
+                                      Line Total: ₹{(quantity * (saleItem?.price || product.price)).toFixed(2)}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -452,7 +507,7 @@ const ShopBilling = () => {
                   variant="success"
                   size="lg"
                   className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation"
-                  disabled={!shopName.trim() || soldItemsCount === 0}
+                  disabled={!shopName.trim() || !isValidForBilling()}
                 >
                   <Check className="w-5 h-5 mr-2" />
                   Generate Bill

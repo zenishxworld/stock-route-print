@@ -17,28 +17,57 @@ import {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [user, setUser] = useState<any>({ email: 'demo@driver.com' }); // Temporary mock user
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Temporarily disabled auth check
-  // useEffect(() => {
-  //   const getUser = async () => {
-  //     const { data: { user } } = await supabase.auth.getUser();
-  //     if (!user) {
-  //       navigate("/auth");
-  //       return;
-  //     }
-  //     setUser(user);
-  //   };
-  //   getUser();
-  // }, [navigate]);
-
-  const handleLogout = () => {
-    // Temporarily disabled logout
-    toast({
-      title: "Info",
-      description: "Authentication is temporarily disabled",
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+      if (!session) {
+        navigate('/auth');
+      }
     });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session) {
+        navigate('/auth');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Logged Out",
+        description: "You have been logged out successfully",
+      });
+      navigate('/auth');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-light via-background to-accent-light flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
 
   const quickActions = [
@@ -91,7 +120,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden sm:flex items-center gap-2 text-sm">
                 <User className="w-4 h-4" />
-                <span className="font-medium">{user?.email?.split('@')[0] || 'Driver'}</span>
+                <span className="font-medium">{user?.phone || user?.email?.split('@')[0] || 'Driver'}</span>
               </div>
               <Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 p-0">
                 <LogOut className="w-4 h-4" />

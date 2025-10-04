@@ -29,6 +29,8 @@ interface StockItem {
 const StartRoute = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   
   const [selectedRoute, setSelectedRoute] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -37,8 +39,29 @@ const StartRoute = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+      if (!session) {
+        navigate('/auth');
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session) {
+        navigate('/auth');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (selectedRoute) {
@@ -118,12 +141,20 @@ const StartRoute = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to continue",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Temporarily using a mock user ID for testing
-      const mockUserId = "00000000-0000-0000-0000-000000000000";
-
       // Filter out products with 0 quantity
       const nonZeroStock = stock.filter(item => item.quantity > 0);
 
@@ -148,7 +179,7 @@ const StartRoute = () => {
 
       // Save daily stock to database
       const stockData: any = {
-        auth_user_id: mockUserId,
+        auth_user_id: user.id,
         route_id: selectedRoute,
         date: today,
         stock: nonZeroStock,
@@ -196,6 +227,17 @@ const StartRoute = () => {
   };
 
   const totalProducts = stock.reduce((sum, item) => sum + item.quantity, 0);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-light via-background to-accent-light flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-primary-light/10">

@@ -120,7 +120,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden sm:flex items-center gap-2 text-sm">
                 <User className="w-4 h-4" />
-                <span className="font-medium">{user?.phone || user?.email?.split('@')[0] || 'Driver'}</span>
+                <span className="font-medium">{user?.email?.split('@')[0] || 'Driver'}</span>
               </div>
               <Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 p-0">
                 <LogOut className="w-4 h-4" />

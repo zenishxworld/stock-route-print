@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Truck, LogIn, Phone, Lock, UserPlus } from "lucide-react";
+import { Truck, LogIn, Lock, UserPlus } from "lucide-react";
 
 const Auth = () => {
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ const Auth = () => {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        phone,
+        email,
         password,
       });
 
@@ -61,12 +61,11 @@ const Auth = () => {
 
     try {
       const { data, error } = await supabase.auth.signUp({
-        phone,
+        email,
         password,
         options: {
           data: {
             name: name,
-            phone: phone,
           }
         }
       });
@@ -89,22 +88,11 @@ const Auth = () => {
           });
           navigate("/dashboard");
         } else {
-          // Try immediate sign-in (works if phone confirmations are disabled)
-          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-            phone,
-            password,
+          toast({
+            title: "Check Your Email",
+            description: "Please verify your email address to continue. If you want instant signup, disable 'Confirm email' in Supabase Auth settings.",
           });
-          if (loginError) {
-            toast({
-              title: "Almost There!",
-              description: "Enable Phone provider and disable phone confirmation in Supabase Auth settings.",
-              variant: "destructive",
-            });
-            setActiveTab("login");
-          } else if (loginData?.user) {
-            toast({ title: "Account Created!", description: "Welcome aboard!" });
-            navigate("/dashboard");
-          }
+          setActiveTab("login");
         }
         setPassword("");
       }
@@ -158,20 +146,16 @@ const Auth = () => {
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
                   <div className="space-y-2">
-                    <Label htmlFor="login-phone" className="text-sm sm:text-base font-semibold">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 sm:w-5 sm:h-5" />
-                      <Input
-                        id="login-phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="pl-10 sm:pl-12 h-11 sm:h-10 text-base"
-                        inputMode="tel"
-                        required
-                      />
-                    </div>
+                    <Label htmlFor="login-email" className="text-sm sm:text-base font-semibold">Email Address</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-11 sm:h-10 text-base"
+                      required
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -218,20 +202,16 @@ const Auth = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-phone" className="text-sm sm:text-base font-semibold">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 sm:w-5 sm:h-5" />
-                      <Input
-                        id="signup-phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="pl-10 sm:pl-12 h-11 sm:h-10 text-base"
-                        inputMode="tel"
-                        required
-                      />
-                    </div>
+                    <Label htmlFor="signup-email" className="text-sm sm:text-base font-semibold">Email Address</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-11 sm:h-10 text-base"
+                      required
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -265,9 +245,6 @@ const Auth = () => {
             </Tabs>
 
             <div className="mt-4 sm:mt-6 text-center">
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Demo: Phone <span className="font-semibold">9876543210</span> | Password <span className="font-semibold">demo123</span>
-              </p>
               <Link to="/" className="text-xs sm:text-sm text-primary hover:underline mt-2 block">
                 ← Back to Home
               </Link>

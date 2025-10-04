@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName } from "@/lib/routeUtils";
-import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check } from "lucide-react";
+import { listenForProductUpdates } from "@/lib/productSync";
+import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw } from "lucide-react";
 
 interface Product {
   id: string;
@@ -57,6 +58,22 @@ const ShopBilling = () => {
     setCurrentDate(date);
     fetchProductsAndStock(route, date);
   }, []);
+
+  // Listen for product updates from other pages
+  useEffect(() => {
+    const cleanup = listenForProductUpdates((event) => {
+      console.log('ShopBilling received product update event:', event);
+      if (event.type === 'product-updated' || event.type === 'product-deleted') {
+        console.log('Refreshing ShopBilling data due to product update');
+        // Refresh products data when products are updated elsewhere
+        if (currentRoute && currentDate) {
+          fetchProductsAndStock(currentRoute, currentDate);
+        }
+      }
+    });
+
+    return cleanup;
+  }, [currentRoute, currentDate]);
 
   const fetchProductsAndStock = async (route: string, date: string) => {
     try {
@@ -326,12 +343,27 @@ const ShopBilling = () => {
                 </div>
               </div>
             </div>
-            {currentRouteName && (
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">Route</p>
-                <p className="text-sm sm:text-base font-semibold text-primary">{currentRouteName}</p>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {currentRouteName && (
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Route</p>
+                  <p className="text-sm sm:text-base font-semibold text-primary">{currentRouteName}</p>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (currentRoute && currentDate) {
+                    fetchProductsAndStock(currentRoute, currentDate);
+                  }
+                }}
+                className="h-9 w-9 p-0"
+                title="Refresh products"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>

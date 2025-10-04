@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyProductUpdate, notifyProductDelete } from "@/lib/productSync";
 import { ArrowLeft, Plus, Edit2, Trash2, Package, Save, X } from "lucide-react";
 import {
   AlertDialog,
@@ -113,17 +114,27 @@ const AddProduct = () => {
 
         if (error) throw error;
 
+        // Notify other pages about the update
+        console.log('AddProduct: Notifying about product update', editingId, productData);
+        notifyProductUpdate(editingId, productData);
+
         toast({
           title: "Product Updated!",
           description: `${name} has been updated successfully`,
         });
       } else {
         // Add new product
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("products")
-          .insert(productData);
+          .insert(productData)
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Notify other pages about the new product
+        console.log('AddProduct: Notifying about new product', data.id, productData);
+        notifyProductUpdate(data.id, productData);
 
         toast({
           title: "Product Added!",
@@ -155,6 +166,9 @@ const AddProduct = () => {
         .eq("id", deleteId);
 
       if (error) throw error;
+
+      // Notify other pages about the deletion
+      notifyProductDelete(deleteId);
 
       toast({
         title: "Product Deleted",

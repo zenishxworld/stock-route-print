@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
+import { listenForProductUpdates } from "@/lib/productSync";
 import { ArrowLeft, BarChart3, Printer, Calendar, TrendingUp, Package, DollarSign } from "lucide-react";
 
 interface Product {
@@ -44,6 +45,20 @@ const Summary = () => {
   useEffect(() => {
     fetchRoutes();
   }, []);
+
+  // Listen for product updates from other pages
+  useEffect(() => {
+    const cleanup = listenForProductUpdates((event) => {
+      if (event.type === 'product-updated' || event.type === 'product-deleted') {
+        // Refresh data when products are updated elsewhere
+        if (selectedRoute && selectedDate) {
+          generateSummary();
+        }
+      }
+    });
+
+    return cleanup;
+  }, [selectedRoute, selectedDate]);
 
   const fetchRoutes = async () => {
     try {

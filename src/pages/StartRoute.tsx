@@ -10,7 +10,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
-import { ArrowLeft, Route, Package, Plus, Minus, Trash2 } from "lucide-react";
+import { listenForProductUpdates } from "@/lib/productSync";
+import { ArrowLeft, Route, Package, Plus, Minus, Trash2, RefreshCw } from "lucide-react";
 
 interface Product {
   id: string;
@@ -70,6 +71,20 @@ const StartRoute = () => {
       fetchData();
     }
   }, [user]);
+
+  // Listen for product updates from other pages
+  useEffect(() => {
+    const cleanup = listenForProductUpdates((event) => {
+      console.log('StartRoute received product update event:', event);
+      if (event.type === 'product-updated' || event.type === 'product-deleted') {
+        console.log('Refreshing StartRoute data due to product update');
+        // Refresh products data when products are updated elsewhere
+        fetchData();
+      }
+    });
+
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     if (selectedRoute) {
@@ -357,6 +372,15 @@ const StartRoute = () => {
                 <p className="text-xs sm:text-sm text-muted-foreground hidden xs:block">Setup your daily inventory</p>
               </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchData}
+              className="h-9 w-9 p-0"
+              title="Refresh products"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </header>

@@ -224,9 +224,10 @@ const StartRoute = () => {
   const deleteRoute = async (routeId: string) => {
     setDeletingRoute(true);
     try {
+      // Soft delete: set is_active to false instead of deleting
       const { error } = await supabase
         .from("routes")
-        .delete()
+        .update({ is_active: false })
         .eq("id", routeId);
 
       if (error) throw error;
@@ -241,12 +242,12 @@ const StartRoute = () => {
       
       toast({
         title: "Success!",
-        description: "Route deleted successfully",
+        description: "Route deactivated successfully",
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete route",
+        description: error.message || "Failed to deactivate route",
         variant: "destructive",
       });
     } finally {

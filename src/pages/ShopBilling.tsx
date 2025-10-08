@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
-import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X } from "lucide-react";
 
 interface Product {
   id: string;
@@ -38,7 +38,73 @@ const ShopBilling = () => {
   const [currentRoute, setCurrentRoute] = useState("");
   const [currentRouteName, setCurrentRouteName] = useState("");
   const [currentDate, setCurrentDate] = useState("");
+  // Shop name suggestions state
+  const [shopSuggestions, setShopSuggestions] = useState<string[]>([]);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
+  // Load previously used shop names (local + remote) for suggestions
+  const loadShopSuggestions = async (routeId: string) => {
+    try {
+      const localKey = `shopNames:${routeId}`;
+      const hiddenKey = `shopNames:hidden:${routeId}`;
+      const local = JSON.parse(localStorage.getItem(localKey) || '[]');
+      const hidden = JSON.parse(localStorage.getItem(hiddenKey) || '[]');
+      const namesSet = new Set<string>(Array.isArray(local) ? local : []);
+      const hiddenSet = new Set<string>(Array.isArray(hidden) ? hidden : []);
+    
+      // Fetch shop names from sales table for this route
+      const { data, error } = await supabase
+        .from("sales")
+        .select("shop_name")
+        .eq("route_id", routeId);
+    
+      if (!error && data) {
+        data.forEach((row: any) => {
+          const name = (row.shop_name || '').trim();
+          if (name && !hiddenSet.has(name)) namesSet.add(name);
+        });
+      }
+    
+      const names = Array.from(namesSet).filter(n => !hiddenSet.has(n)).sort((a, b) => a.localeCompare(b));
+      setShopSuggestions(names);
+      localStorage.setItem(localKey, JSON.stringify(names));
+    } catch (err) {
+      // Ignore errors, suggestions are non-critical
+      console.warn('Failed to load shop suggestions', err);
+    }
+  };
+
+  // Save a shop name to local suggestions cache
+  const saveShopNameToLocal = (routeId: string, name: string) => {
+    const localKey = `shopNames:${routeId}`;
+    const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+    let updated: string[] = Array.isArray(existing) ? existing : [];
+    if (!updated.includes(name)) {
+      updated = [name, ...updated].slice(0, 100); // keep recent up to 100
+      localStorage.setItem(localKey, JSON.stringify(updated));
+    }
+    setShopSuggestions(prev => (prev.includes(name) ? prev : [name, ...prev]));
+  };
+
+  const removeShopName = (routeId: string, name: string) => {
+    const localKey = `shopNames:${routeId}`;
+    const hiddenKey = `shopNames:hidden:${routeId}`;
+    const existingLocal = JSON.parse(localStorage.getItem(localKey) || '[]');
+    let updatedLocal: string[] = Array.isArray(existingLocal) ? existingLocal : [];
+    updatedLocal = updatedLocal.filter(n => n !== name);
+    localStorage.setItem(localKey, JSON.stringify(updatedLocal));
+
+    const existingHidden = JSON.parse(localStorage.getItem(hiddenKey) || '[]');
+    let updatedHidden: string[] = Array.isArray(existingHidden) ? existingHidden : [];
+    if (!updatedHidden.includes(name)) {
+      updatedHidden.push(name);
+      localStorage.setItem(hiddenKey, JSON.stringify(updatedHidden));
+    }
+
+    setShopSuggestions(prev => prev.filter(n => n !== name));
+    setFilteredSuggestions(prev => prev.filter(n => n !== name));
+  };
   useEffect(() => {
     // Get current route and date from localStorage
     const route = localStorage.getItem('currentRoute');
@@ -57,6 +123,8 @@ const ShopBilling = () => {
     setCurrentRoute(route);
     setCurrentDate(date);
     fetchProductsAndStock(route, date);
+    // Load shop name suggestions for this route
+    loadShopSuggestions(route);
   }, []);
 
   // Listen for product updates from other pages
@@ -290,6 +358,11 @@ const ShopBilling = () => {
         throw error;
       }
 
+      // Save shop name to local suggestions for quick reuse
+      if (currentRoute && shopName.trim()) {
+        saveShopNameToLocal(currentRoute, shopName.trim());
+      }
+
       // Print the bill
       window.print();
 
@@ -394,14 +467,83 @@ const ShopBilling = () => {
                     <Store className="w-4 h-4" />
                     Shop Name
                   </Label>
-                  <Input
-                    type="text"
-                    placeholder="Enter shop name"
-                    value={shopName}
-                    onChange={(e) => setShopName(e.target.value)}
-                    className="h-11 sm:h-10 text-base"
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Enter shop name"
+                      value={shopName}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setShopName(value);
+                        if (value.trim().length >= 1) {
+                          const match = shopSuggestions
+                            .filter(n => n.toLowerCase().startsWith(value.toLowerCase()))
+                            .slice(0, 8);
+                          setFilteredSuggestions(match);
+                          setShowSuggestions(match.length > 0);
+                        } else {
+                          setShowSuggestions(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (shopName.trim().length >= 1) {
+                          const match = shopSuggestions
+                            .filter(n => n.toLowerCase().startsWith(shopName.toLowerCase()))
+                            .slice(0, 8);
+                          setFilteredSuggestions(match);
+                          setShowSuggestions(match.length > 0);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay to allow click on suggestion
+                        setTimeout(() => setShowSuggestions(false), 150);
+                      }}
+                      className="h-11 sm:h-10 text-base"
+                      required
+                    />
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                      <div className="absolute z-20 left-0 right-0 mt-2 bg-background border border-border rounded-md shadow-soft max-h-48 overflow-auto">
+                        {filteredSuggestions.map((name) => (
+                          <div
+                            key={name}
+                            className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted text-sm"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setShopName(name);
+                              setShowSuggestions(false);
+                            }}
+                          >
+                            <span className="truncate">{name}</span>
+                            <button
+                              type="button"
+                              className="ml-2 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                              title="Remove"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (currentRoute) {
+                                  removeShopName(currentRoute, name);
+                                  const value = shopName.trim();
+                                  if (value.length >= 1) {
+                                    const match = shopSuggestions
+                                      .filter(n => n.toLowerCase().startsWith(value.toLowerCase()))
+                                      .slice(0, 8);
+                                    setFilteredSuggestions(match);
+                                    setShowSuggestions(match.length > 0);
+                                  } else {
+                                    setShowSuggestions(false);
+                                  }
+                                }
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Products Selection */}

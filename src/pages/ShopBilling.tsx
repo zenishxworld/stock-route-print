@@ -731,15 +731,26 @@ const ShopBilling = () => {
             </Card>
 
             {/* Printable Bill */}
-            <div ref={printRef} className="print:p-0">
+            <div ref={printRef} className="receipt print:p-0 print:bg-white print:text-black print:font-mono print:w-[72mm] print:mx-auto">
               <Card className="border-0 shadow-strong print:shadow-none print:border-0">
-                <CardContent className="p-6 sm:p-8 print:p-4">
+                <CardContent className="p-6 sm:p-8 print:p-2">
                   {/* Bill Header */}
-                  <div className="text-center mb-6 print:mb-4">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-xl">Cold Drink Sales</h1>
-                    <p className="text-sm text-muted-foreground print:text-xs">Sales Invoice</p>
-                    <div className="mt-2 space-y-1 text-xs text-muted-foreground print:text-[10px]">
-                      <p>Date: {new Date().toLocaleDateString('en-IN', { 
+                  <div className="text-center mb-6 print:mb-3">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-lg">BHAVYA ENTERPRICE</h1>
+                    <p className="text-sm font-semibold text-foreground print:text-[10px]">Sales Invoice</p>
+                    {/* Address (no spacing between lines) */}
+                    <div className="mt-1 text-xs text-foreground print:text-[10px]">
+                      <p className="leading-tight">Near Bala petrol pump</p>
+                      <p className="leading-tight">Jambusar Bharuch road</p>
+                    </div>
+                    {/* Space after address, then phone and GSTIN with no spacing between them */}
+                    <div className="mt-2 text-xs text-foreground print:text-[10px]">
+                      <p className="leading-tight">Phone no.: 8866756059</p>
+                      <p className="leading-tight">GSTIN: 24EVVPS8220P1ZF</p>
+                    </div>
+                    {/* Date/Time in black */}
+                    <div className="mt-2 text-xs text-foreground print:text-[10px]">
+                      <p className="leading-tight">Date: {new Date().toLocaleDateString('en-IN', { 
                         day: '2-digit', 
                         month: 'short', 
                         year: 'numeric',
@@ -753,32 +764,32 @@ const ShopBilling = () => {
                   </div>
 
                   {/* Shop Details */}
-                  <div className="mb-6 print:mb-4 pb-4 border-b-2 border-dashed">
-                    <div className="flex items-center gap-2 mb-2">
+                  <div className="mb-6 print:mb-3 pb-3 border-t border-b border-dashed">
+                    <div className="flex items-center gap-2 mb-1">
                       <Store className="w-5 h-5 text-primary print:w-4 print:h-4" />
-                      <span className="font-semibold text-foreground print:text-sm">Shop Name:</span>
+                      <span className="font-semibold text-foreground print:text-[11px]">Shop:</span>
                     </div>
-                    <p className="text-lg font-bold text-foreground pl-7 print:text-base">{shopName}</p>
+                    <p className="text-lg font-bold text-foreground pl-7 print:text-sm">{shopName}</p>
                   </div>
 
                   {/* Products Table */}
-                  <div className="mb-6 print:mb-4">
+                  <div className="mb-6 print:mb-3">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b-2 border-foreground">
-                          <th className="text-left py-2 font-bold text-foreground print:text-sm print:py-1">Product</th>
-                          <th className="text-center py-2 font-bold text-foreground print:text-sm print:py-1">Qty</th>
-                          <th className="text-right py-2 font-bold text-foreground print:text-sm print:py-1">Price</th>
-                          <th className="text-right py-2 font-bold text-foreground print:text-sm print:py-1">Total</th>
+                        <tr className="border-b border-foreground border-dashed">
+                          <th className="text-left py-2 font-bold text-foreground print:text-[11px] print:py-1">Item</th>
+                          <th className="text-center py-2 font-bold text-foreground print:text-[11px] print:py-1">Qty</th>
+                          <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Rate</th>
+                          <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Amt</th>
                         </tr>
                       </thead>
                       <tbody>
                         {getSoldItems().map((item, index) => (
                           <tr key={item.productId} className="border-b border-border">
-                            <td className="py-3 text-foreground print:text-sm print:py-2">{item.productName}</td>
-                            <td className="py-3 text-center text-foreground print:text-sm print:py-2">{item.quantity}</td>
-                            <td className="py-3 text-right text-foreground print:text-sm print:py-2">₹{item.price.toFixed(2)}</td>
-                            <td className="py-3 text-right font-semibold text-foreground print:text-sm print:py-2">₹{item.total.toFixed(2)}</td>
+                            <td className="py-3 text-foreground print:text-[11px] print:py-1">{item.productName}</td>
+                            <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity}</td>
+                            <td className="py-3 text-right text-foreground print:text-[11px] print:py-1">₹{item.price.toFixed(2)}</td>
+                            <td className="py-3 text-right font-semibold text-foreground print:text-[11px] print:py-1">₹{item.total.toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -786,10 +797,10 @@ const ShopBilling = () => {
                   </div>
 
                   {/* Total Section */}
-                  <div className="border-t-2 border-foreground pt-4 print:pt-3">
+                  <div className="border-t border-foreground border-dashed pt-3 print:pt-2">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-lg font-bold text-foreground print:text-base">TOTAL:</span>
-                      <span className="text-2xl font-bold text-primary print:text-xl">₹{totalAmount.toFixed(2)}</span>
+                      <span className="text-lg font-bold text-foreground print:text-sm">TOTAL:</span>
+                      <span className="text-2xl font-bold text-primary print:text-base">₹{totalAmount.toFixed(2)}</span>
                     </div>
                     <div className="text-xs text-muted-foreground text-right print:text-[10px]">
                       Items: {soldItemsCount}
@@ -797,9 +808,9 @@ const ShopBilling = () => {
                   </div>
 
                   {/* Footer */}
-                  <div className="mt-8 pt-4 border-t border-dashed text-center print:mt-6 print:pt-3">
-                    <p className="text-sm font-semibold text-foreground print:text-xs">Thank you for your business!</p>
-                    <p className="text-xs text-muted-foreground mt-1 print:text-[10px]">Have a great day!</p>
+                  <div className="mt-6 pt-3 border-t border-dashed text-center print:mt-4 print:pt-2">
+                    <p className="text-sm font-semibold text-foreground print:text-[10px]">Thank you for your business!</p>
+                    <p className="text-xs text-muted-foreground mt-1 print:text-[9px]">Have a great day!</p>
                   </div>
                 </CardContent>
               </Card>
@@ -814,89 +825,33 @@ const ShopBilling = () => {
           body {
             margin: 0;
             padding: 0;
+            background-color: #fff;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
           }
           
+          /* Set page size for 80mm roll printer */
           @page {
             size: 80mm auto;
-            margin: 5mm;
+            margin: 3mm;
           }
           
+          .receipt {
+            width: 72mm !important;
+            margin: 0 auto !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: #000 !important;
+          }
+      
+          .print-container {
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+      
           .print\\:hidden {
             display: none !important;
-          }
-          
-          .print\\:p-0 {
-            padding: 0 !important;
-          }
-          
-          .print\\:p-4 {
-            padding: 1rem !important;
-          }
-          
-          .print\\:mb-4 {
-            margin-bottom: 1rem !important;
-          }
-          
-          .print\\:mb-3 {
-            margin-bottom: 0.75rem !important;
-          }
-          
-          .print\\:mt-6 {
-            margin-top: 1.5rem !important;
-          }
-          
-          .print\\:pt-3 {
-            padding-top: 0.75rem !important;
-          }
-          
-          .print\\:py-1 {
-            padding-top: 0.25rem !important;
-            padding-bottom: 0.25rem !important;
-          }
-          
-          .print\\:py-2 {
-            padding-top: 0.5rem !important;
-            padding-bottom: 0.5rem !important;
-          }
-          
-          .print\\:text-xs {
-            font-size: 0.75rem !important;
-            line-height: 1rem !important;
-          }
-          
-          .print\\:text-sm {
-            font-size: 0.875rem !important;
-            line-height: 1.25rem !important;
-          }
-          
-          .print\\:text-base {
-            font-size: 1rem !important;
-            line-height: 1.5rem !important;
-          }
-          
-          .print\\:text-xl {
-            font-size: 1.25rem !important;
-            line-height: 1.75rem !important;
-          }
-          
-          .print\\:text-\\[10px\\] {
-            font-size: 10px !important;
-          }
-          
-          .print\\:w-4 {
-            width: 1rem !important;
-          }
-          
-          .print\\:h-4 {
-            height: 1rem !important;
-          }
-          
-          .print\\:shadow-none {
-            box-shadow: none !important;
-          }
-          
-          .print\\:border-0 {
-            border-width: 0 !important;
           }
         }
       `}</style>

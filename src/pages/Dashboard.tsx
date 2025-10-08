@@ -112,7 +112,7 @@ const Dashboard = () => {
                 <Route className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-base sm:text-xl font-bold text-foreground">Cold Drink Sales</h1>
+                <h1 className="text-base sm:text-xl font-bold text-foreground">Fresh Soda</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">Driver Dashboard</p>
               </div>
             </div>

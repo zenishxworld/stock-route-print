@@ -184,12 +184,31 @@ const StartRoute = () => {
 
     setCreatingRoute(true);
     try {
+      // Prevent duplicate route names (case-insensitive)
+      const nameToCheck = newRouteName.trim();
+      const { data: existing, error: existingError } = await supabase
+        .from("routes")
+        .select("id, name")
+        .ilike("name", nameToCheck)
+        .maybeSingle();
+
+      if (existingError && existingError.code !== "PGRST116") throw existingError;
+      if (existing) {
+        toast({
+          title: "Route name already exists",
+          description: "Please choose a different name.",
+          variant: "destructive",
+        });
+        setCreatingRoute(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("routes")
         .insert({
-          name: newRouteName.trim(),
-          description: `Custom route: ${newRouteName.trim()}`,
-          is_active: true
+          name: nameToCheck,
+          description: `Custom route: ${nameToCheck}`,
+          is_active: true,
         })
         .select()
         .single();
@@ -197,23 +216,30 @@ const StartRoute = () => {
       if (error) throw error;
 
       // Add the new route to the local state
-      setRoutes(prev => [...prev, { id: data.id, name: data.name, displayName: data.name }]);
-      
+      setRoutes((prev) => [
+        ...prev,
+        { id: data.id, name: data.name, displayName: mapRouteName(data.name) },
+      ]);
+
       // Select the newly created route
       setSelectedRoute(data.id);
-      
+
       // Close dialog and reset form
       setShowNewRouteDialog(false);
       setNewRouteName("");
-      
+
       toast({
         title: "Success!",
         description: `Route "${data.name}" created successfully`,
       });
     } catch (error: any) {
+      const message =
+        error?.code === "23505"
+          ? "A route with this name already exists. Please choose a different name."
+          : error.message || "Failed to create route";
       toast({
         title: "Error",
-        description: error.message || "Failed to create route",
+        description: message,
         variant: "destructive",
       });
     } finally {

@@ -203,6 +203,11 @@ const Summary = () => {
     return summaryData.reduce((sum, item) => sum + item.remainingQty, 0);
   };
 
+  const calculateTotalStock = () => {
+    // Total stock = items sold + items remaining
+    return calculateTotalSold() + calculateTotalRemaining();
+  };
+
   const getRouteName = () => {
     const route = routes.find(r => r.id === selectedRoute);
     if (!route) return "Unknown Route";
@@ -340,7 +345,14 @@ const Summary = () => {
                 </div>
 
                 {/* Stats Cards - Hidden on print */}
-                <div className="grid grid-cols-3 gap-3 mb-6 print:hidden">
+                <div className="grid grid-cols-4 gap-3 mb-6 print:hidden">
+                  <Card className="border border-primary/20 bg-primary-light/10">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <Package className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
+                      <p className="text-lg sm:text-xl font-bold text-primary">{calculateTotalStock()}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Total Stock</p>
+                    </CardContent>
+                  </Card>
                   <Card className="border border-primary/20 bg-primary-light/10">
                     <CardContent className="p-3 sm:p-4 text-center">
                       <Package className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />

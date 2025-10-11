@@ -99,6 +99,13 @@ const Dashboard = () => {
       color: "bg-gradient-to-r from-primary to-primary-dark",
       action: () => navigate("/summary"),
     },
+    {
+      title: "Bill History",
+      description: "See all bills created for a day",
+      icon: Package,
+      color: "bg-gradient-to-r from-accent to-success-green",
+      action: () => navigate("/bill-history"),
+    },
   ];
 
   return (

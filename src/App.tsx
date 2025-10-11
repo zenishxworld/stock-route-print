@@ -11,6 +11,7 @@ import ShopBilling from "./pages/ShopBilling";
 import AddProduct from "./pages/AddProduct";
 import Summary from "./pages/Summary";
 import NotFound from "./pages/NotFound";
+import BillHistory from "./pages/BillHistory";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/summary" element={<Summary />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/login" element={<Auth />} />
+          <Route path="/bill-history" element={<BillHistory />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

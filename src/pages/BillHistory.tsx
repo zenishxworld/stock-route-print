@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
-import { ArrowLeft, Calendar, Printer, Package } from "lucide-react";
+import { ArrowLeft, Calendar, Printer, Package, Store } from "lucide-react";
 
 interface SaleRow {
   id: string;
@@ -215,70 +215,157 @@ const BillHistory = () => {
 
         {/* Bill details dialog */}
         <Dialog open={!!selectedSale} onOpenChange={() => setSelectedSale(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl print:shadow-none print:border-0 print:bg-white">
+            {/* Header inside dialog - hide when printing */}
+            <DialogHeader className="print:hidden">
               <DialogTitle>Bill Details</DialogTitle>
               <DialogDescription>Review and print the bill</DialogDescription>
             </DialogHeader>
-                {selectedSale && (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <div className="text-sm text-muted-foreground">{selectedSale.date} · {formatTime(selectedSale.created_at)}</div>
-                        <div className="text-base font-semibold">{selectedSale.shop_name}</div>
-                        <div className="text-xs text-muted-foreground">{getRouteName(selectedSale.route_id)}</div>
-                        {!Array.isArray(selectedSale.products_sold) && selectedSale.products_sold?.shop_address && (
-                          <div className="text-xs text-muted-foreground">Address/Village: {selectedSale.products_sold.shop_address}</div>
-                        )}
-                        {!Array.isArray(selectedSale.products_sold) && selectedSale.products_sold?.shop_phone && (
-                          <div className="text-xs text-muted-foreground">Phone: {selectedSale.products_sold.shop_phone}</div>
-                        )}
-                      </div>
-                      <Button variant="outline" onClick={onPrintSelected}>
-                        <Printer className="w-4 h-4 mr-2" /> Print
-                      </Button>
-                    </div>
 
-                <div className="border rounded-md overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-muted/40">
-                        <th className="text-left p-2">Item</th>
-                        <th className="text-center p-2">Qty</th>
-                        <th className="text-right p-2">Price</th>
-                        <th className="text-right p-2">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.isArray(selectedSale.products_sold)
-                        ? selectedSale.products_sold.map((p: any, idx: number) => (
-                            <tr key={idx} className="border-t">
-                              <td className="p-2">{p.productName || p.name}</td>
-                              <td className="text-center p-2">{p.quantity}</td>
-                              <td className="text-right p-2">₹{(p.price ?? 0).toFixed(2)}</td>
-                              <td className="text-right p-2">₹{(p.total ?? (p.quantity * (p.price ?? 0))).toFixed(2)}</td>
-                            </tr>
-                          ))
-                        : (selectedSale.products_sold?.items || []).map((p: any, idx: number) => (
-                            <tr key={idx} className="border-t">
-                              <td className="p-2">{p.productName || p.name}</td>
-                              <td className="text-center p-2">{p.quantity}</td>
-                              <td className="text-right p-2">₹{(p.price ?? 0).toFixed(2)}</td>
-                              <td className="text-right p-2">₹{(p.total ?? (p.quantity * (p.price ?? 0))).toFixed(2)}</td>
-                            </tr>
-                          ))}
-                    </tbody>
-                  </table>
+            {selectedSale && (
+              <div className="space-y-4">
+                {/* Top info and actions - hide on print */}
+                <div className="flex items-center justify-between mb-3 print:hidden">
+                  <div>
+                    <div className="text-sm text-muted-foreground">{selectedSale.date} · {formatTime(selectedSale.created_at)}</div>
+                    <div className="text-base font-semibold">{selectedSale.shop_name}</div>
+                    <div className="text-xs text-muted-foreground">{getRouteName(selectedSale.route_id)}</div>
+                  </div>
+                  <Button variant="outline" onClick={onPrintSelected}>
+                    <Printer className="w-4 h-4 mr-2" /> Print
+                  </Button>
                 </div>
 
-                <div className="mt-3 text-right">
-                  <div className="text-sm font-semibold">Grand Total: ₹{selectedSale.total_amount.toFixed(2)}</div>
+                {/* Printable Bill — same layout as ShopBilling */}
+                <div className="receipt print:p-0 print:bg-white print:text-black print:font-mono print:w-[72mm] print:mx-auto">
+                  <Card className="border-0 shadow-strong print:shadow-none print:border-0">
+                    <CardContent className="p-6 sm:p-8 print:p-2">
+                      {/* Bill Header */}
+                      <div className="text-center mb-6 print:mb-3">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-lg">BHAVYA ENTERPRICE</h1>
+                        <p className="text-sm font-semibold text-foreground print:text-[10px]">Sales Invoice</p>
+                        {/* Address */}
+                        <div className="mt-1 text-xs text-foreground print:text-[10px]">
+                          <p className="leading-tight">Near Bala petrol pump</p>
+                          <p className="leading-tight">Jambusar Bharuch road</p>
+                        </div>
+                        {/* Phone and GSTIN */}
+                        <div className="mt-2 text-xs text-foreground print:text-[10px]">
+                          <p className="leading-tight">Phone no.: 8866756059</p>
+                          <p className="leading-tight">GSTIN: 24EVVPS8220P1ZF</p>
+                        </div>
+                        {/* Date/Time and Route */}
+                        <div className="mt-2 text-xs text-foreground print:text-[10px]">
+                          <p className="leading-tight">Date: {new Date(selectedSale.created_at).toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}</p>
+                          <p className="font-semibold text-primary">Route: {getRouteName(selectedSale.route_id)}</p>
+                        </div>
+                      </div>
+
+                      {/* Shop Details */}
+                      <div className="mb-6 print:mb-3 pb-3 border-t border-b border-dashed">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Store className="w-5 h-5 text-primary print:w-4 print:h-4" />
+                          <span className="font-semibold text-foreground print:text-[11px]">Shop:</span>
+                        </div>
+                        <p className="text-lg font-bold text-foreground pl-7 print:text-sm">{selectedSale.shop_name}</p>
+                        {!Array.isArray(selectedSale.products_sold) && selectedSale.products_sold?.shop_address && (
+                          <p className="text-xs text-muted-foreground pl-7 mt-1 print:text-[10px]">Address/Village: {selectedSale.products_sold.shop_address}</p>
+                        )}
+                        {!Array.isArray(selectedSale.products_sold) && selectedSale.products_sold?.shop_phone && (
+                          <p className="text-xs text-muted-foreground pl-7 print:text-[10px]">Phone: {selectedSale.products_sold.shop_phone}</p>
+                        )}
+                      </div>
+
+                      {/* Products Table */}
+                      <div className="mb-6 print:mb-3">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-foreground border-dashed">
+                              <th className="text-left py-2 font-bold text-foreground print:text-[11px] print:py-1">Item</th>
+                              <th className="text-center py-2 font-bold text-foreground print:text-[11px] print:py-1">Qty</th>
+                              <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Rate</th>
+                              <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Amt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(Array.isArray(selectedSale.products_sold) ? selectedSale.products_sold : (selectedSale.products_sold?.items || [])).map((item: any, index: number) => (
+                              <tr key={index} className="border-b border-border">
+                                <td className="py-3 text-foreground print:text-[11px] print:py-1">{item.productName || item.name}</td>
+                                <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity}</td>
+                                <td className="py-3 text-right text-foreground print:text-[11px] print:py-1">₹{(item.price ?? 0).toFixed(2)}</td>
+                                <td className="py-3 text-right font-semibold text-foreground print:text-[11px] print:py-1">₹{(item.total ?? (item.quantity * (item.price ?? 0))).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Total Section */}
+                      <div className="border-t border-foreground border-dashed pt-3 print:pt-2">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-lg font-bold text-foreground print:text-sm">TOTAL:</span>
+                          <span className="text-2xl font-bold text-primary print:text-base">₹{selectedSale.total_amount.toFixed(2)}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground text-right print:text-[10px]">
+                          Items: {(Array.isArray(selectedSale.products_sold) ? selectedSale.products_sold : (selectedSale.products_sold?.items || [])).reduce((sum: number, it: any) => sum + (it.quantity || 0), 0)}
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="mt-6 pt-3 border-t border-dashed text-center print:mt-4 print:pt-2">
+                        <p className="text-sm font-semibold text-foreground print:text-[10px]">Thank you for your business!</p>
+                        <p className="text-xs text-muted-foreground mt-1 print:text-[9px]">Have a great day!</p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
       </main>
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          body {
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+          }
+
+          /* Set page size for 80mm roll printer */
+          @page {
+            size: 80mm auto;
+            margin: 3mm;
+          }
+
+          .receipt {
+            width: 72mm !important;
+            margin: 0 auto !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: #000 !important;
+          }
+
+          .print-container {
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

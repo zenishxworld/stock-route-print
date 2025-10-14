@@ -659,11 +659,26 @@ const ShopBilling = () => {
                   </div>
 
                   <div className="grid gap-3 sm:gap-4">
-                    {products.map((product) => {
+                    {(
+                      // Sort products: available stock first, out-of-stock at the bottom
+                      products
+                        .map((prod, idx) => {
+                          const si = saleItems.find(s => s.productId === prod.id);
+                          const avail = si?.availableStock || 0;
+                          return { prod, idx, avail };
+                        })
+                        .sort((a, b) => {
+                          const aOut = a.avail === 0 ? 1 : 0;
+                          const bOut = b.avail === 0 ? 1 : 0;
+                          if (aOut !== bOut) return aOut - bOut; // in-stock first
+                          return a.idx - b.idx; // keep original order within groups
+                        })
+                        .map(x => x.prod)
+                    ).map((product) => {
                       const saleItem = saleItems.find(s => s.productId === product.id);
                       const quantity = saleItem?.quantity || 0;
                       const availableStock = saleItem?.availableStock || 0;
-                      
+
                       return (
                         <Card key={product.id} className={`border transition-colors active:border-primary ${
                           availableStock === 0 ? 'border-destructive/50 opacity-60' : 'border-border hover:border-primary/50'

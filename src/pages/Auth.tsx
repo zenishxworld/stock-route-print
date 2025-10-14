@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Truck, LogIn, Lock, UserPlus } from "lucide-react";
+import { isWithinAuthGracePeriod } from "@/lib/utils";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -17,6 +18,16 @@ const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // If a session already exists or the device is within the 12-hour grace window,
+  // skip the login screen and go to dashboard.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session || isWithinAuthGracePeriod()) {
+        navigate("/dashboard", { replace: true });
+      }
+    });
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

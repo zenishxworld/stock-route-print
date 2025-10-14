@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
-import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X, MapPin, Phone } from "lucide-react";
 
 interface Product {
   id: string;
@@ -38,10 +38,30 @@ const ShopBilling = () => {
   const [currentRoute, setCurrentRoute] = useState("");
   const [currentRouteName, setCurrentRouteName] = useState("");
   const [currentDate, setCurrentDate] = useState("");
+  const [shopAddress, setShopAddress] = useState("");
+  const [shopPhone, setShopPhone] = useState("");
   // Shop name suggestions state
   const [shopSuggestions, setShopSuggestions] = useState<string[]>([]);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Route-scoped shop details cache (address/phone) helpers
+  const getDetailsKey = (routeId: string) => `shopDetails:${routeId}`;
+  const saveShopDetailsToLocal = (routeId: string, name: string, address?: string, phone?: string) => {
+    if (!routeId || !name) return;
+    const key = getDetailsKey(routeId);
+    const existing = JSON.parse(localStorage.getItem(key) || '{}');
+    const map = existing && typeof existing === 'object' ? existing : {};
+    map[name] = { address: address || '', phone: phone || '' };
+    localStorage.setItem(key, JSON.stringify(map));
+  };
+  const getShopDetailsFromLocal = (routeId: string, name: string): { address?: string; phone?: string } | undefined => {
+    if (!routeId || !name) return undefined;
+    const key = getDetailsKey(routeId);
+    const existing = JSON.parse(localStorage.getItem(key) || '{}');
+    const map = existing && typeof existing === 'object' ? existing : {};
+    return map[name];
+  };
 
   // Load previously used shop names (local + remote) for suggestions
   const loadShopSuggestions = async (routeId: string) => {
@@ -52,23 +72,38 @@ const ShopBilling = () => {
       const hidden = JSON.parse(localStorage.getItem(hiddenKey) || '[]');
       const namesSet = new Set<string>(Array.isArray(local) ? local : []);
       const hiddenSet = new Set<string>(Array.isArray(hidden) ? hidden : []);
+      const detailsKey = getDetailsKey(routeId);
+      const existingDetails = JSON.parse(localStorage.getItem(detailsKey) || '{}');
+      const detailsMap: Record<string, { address?: string; phone?: string }> = existingDetails && typeof existingDetails === 'object' ? existingDetails : {};
     
       // Fetch shop names from sales table for this route
       const { data, error } = await supabase
         .from("sales")
-        .select("shop_name")
+        .select("shop_name, products_sold")
         .eq("route_id", routeId);
     
       if (!error && data) {
         data.forEach((row: any) => {
           const name = (row.shop_name || '').trim();
           if (name && !hiddenSet.has(name)) namesSet.add(name);
+          // Try capture address/phone from products_sold (object shape)
+          const ps = row.products_sold;
+          if (ps && !Array.isArray(ps)) {
+            const addr = ps.shop_address || '';
+            const ph = ps.shop_phone || '';
+            if ((addr || ph) && !hiddenSet.has(name)) {
+              if (!detailsMap[name]) detailsMap[name] = {};
+              if (addr) detailsMap[name].address = addr;
+              if (ph) detailsMap[name].phone = ph;
+            }
+          }
         });
       }
     
       const names = Array.from(namesSet).filter(n => !hiddenSet.has(n)).sort((a, b) => a.localeCompare(b));
       setShopSuggestions(names);
       localStorage.setItem(localKey, JSON.stringify(names));
+      localStorage.setItem(detailsKey, JSON.stringify(detailsMap));
     } catch (err) {
       // Ignore errors, suggestions are non-critical
       console.warn('Failed to load shop suggestions', err);
@@ -100,6 +135,14 @@ const ShopBilling = () => {
     if (!updatedHidden.includes(name)) {
       updatedHidden.push(name);
       localStorage.setItem(hiddenKey, JSON.stringify(updatedHidden));
+    }
+
+    // Also purge stored details for this shop
+    const detailsKey = getDetailsKey(routeId);
+    const details = JSON.parse(localStorage.getItem(detailsKey) || '{}');
+    if (details && typeof details === 'object' && details[name]) {
+      delete details[name];
+      localStorage.setItem(detailsKey, JSON.stringify(details));
     }
 
     setShopSuggestions(prev => prev.filter(n => n !== name));
@@ -203,7 +246,10 @@ const ShopBilling = () => {
         if (salesData) {
           salesData.forEach(sale => {
             if (sale.products_sold) {
-              const saleItem = (sale.products_sold as any[]).find(
+              const items = Array.isArray(sale.products_sold)
+                ? (sale.products_sold as any[])
+                : ((sale.products_sold?.items as any[]) || []);
+              const saleItem = items.find(
                 (p: any) => p.productId === product.id
               );
               totalSold += saleItem?.quantity || 0;
@@ -339,13 +385,17 @@ const ShopBilling = () => {
         auth_user_id: mockUserId,
         shop_name: shopName,
         date: currentDate,
-        products_sold: soldItems.map(item => ({
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          price: item.price,
-          total: item.total,
-        })),
+        products_sold: {
+          items: soldItems.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total,
+          })),
+          shop_address: shopAddress,
+          shop_phone: shopPhone,
+        },
         total_amount: calculateTotal(),
         route_id: currentRoute,
         truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
@@ -361,6 +411,13 @@ const ShopBilling = () => {
       // Save shop name to local suggestions for quick reuse
       if (currentRoute && shopName.trim()) {
         saveShopNameToLocal(currentRoute, shopName.trim());
+        // Persist address/phone so they auto-fill next time for this shop
+        saveShopDetailsToLocal(
+          currentRoute,
+          shopName.trim(),
+          (shopAddress || '').trim(),
+          (shopPhone || '').trim()
+        );
       }
 
       // Print the bill
@@ -481,6 +538,15 @@ const ShopBilling = () => {
                             .slice(0, 8);
                           setFilteredSuggestions(match);
                           setShowSuggestions(match.length > 0);
+                          // Auto-fill address/phone if typed name exactly matches a suggestion
+                          const exact = shopSuggestions.find(n => n.toLowerCase() === value.trim().toLowerCase());
+                          if (exact && currentRoute) {
+                            const details = getShopDetailsFromLocal(currentRoute, exact);
+                            if (details) {
+                              if (typeof details.address === 'string') setShopAddress(details.address);
+                              if (typeof details.phone === 'string') setShopPhone(details.phone);
+                            }
+                          }
                         } else {
                           setShowSuggestions(false);
                         }
@@ -511,6 +577,14 @@ const ShopBilling = () => {
                             onClick={() => {
                               setShopName(name);
                               setShowSuggestions(false);
+                              // Auto-populate address/phone from saved details for this route
+                              if (currentRoute) {
+                                const details = getShopDetailsFromLocal(currentRoute, name);
+                                if (details) {
+                                  if (typeof details.address === 'string') setShopAddress(details.address);
+                                  if (typeof details.phone === 'string') setShopPhone(details.phone);
+                                }
+                              }
                             }}
                           >
                             <span className="truncate">{name}</span>
@@ -544,6 +618,40 @@ const ShopBilling = () => {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Address / Village */}
+                <div className="space-y-2">
+                  <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Address / Village
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="Enter address or village name"
+                    value={shopAddress}
+                    onChange={(e) => setShopAddress(e.target.value)}
+                    className="h-11 sm:h-10 text-base"
+                  />
+                </div>
+
+                {/* Phone Number */}
+                <div className="space-y-2">
+                  <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Phone Number
+                  </Label>
+                  <Input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="Enter phone number"
+                    value={shopPhone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9+\-\s]/g, "");
+                      setShopPhone(val);
+                    }}
+                    className="h-11 sm:h-10 text-base"
+                  />
                 </div>
 
                 {/* Products Selection */}
@@ -770,6 +878,12 @@ const ShopBilling = () => {
                       <span className="font-semibold text-foreground print:text-[11px]">Shop:</span>
                     </div>
                     <p className="text-lg font-bold text-foreground pl-7 print:text-sm">{shopName}</p>
+                    {shopAddress && (
+                      <p className="text-xs text-muted-foreground pl-7 mt-1 print:text-[10px]">Address/Village: {shopAddress}</p>
+                    )}
+                    {shopPhone && (
+                      <p className="text-xs text-muted-foreground pl-7 print:text-[10px]">Phone: {shopPhone}</p>
+                    )}
                   </div>
 
                   {/* Products Table */}

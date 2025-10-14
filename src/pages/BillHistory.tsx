@@ -220,18 +220,24 @@ const BillHistory = () => {
               <DialogTitle>Bill Details</DialogTitle>
               <DialogDescription>Review and print the bill</DialogDescription>
             </DialogHeader>
-            {selectedSale && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
+                {selectedSale && (
                   <div>
-                    <div className="text-sm text-muted-foreground">{selectedSale.date} · {formatTime(selectedSale.created_at)}</div>
-                    <div className="text-base font-semibold">{selectedSale.shop_name}</div>
-                    <div className="text-xs text-muted-foreground">{getRouteName(selectedSale.route_id)}</div>
-                  </div>
-                  <Button variant="outline" onClick={onPrintSelected}>
-                    <Printer className="w-4 h-4 mr-2" /> Print
-                  </Button>
-                </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <div className="text-sm text-muted-foreground">{selectedSale.date} · {formatTime(selectedSale.created_at)}</div>
+                        <div className="text-base font-semibold">{selectedSale.shop_name}</div>
+                        <div className="text-xs text-muted-foreground">{getRouteName(selectedSale.route_id)}</div>
+                        {!Array.isArray(selectedSale.products_sold) && selectedSale.products_sold?.shop_address && (
+                          <div className="text-xs text-muted-foreground">Address/Village: {selectedSale.products_sold.shop_address}</div>
+                        )}
+                        {!Array.isArray(selectedSale.products_sold) && selectedSale.products_sold?.shop_phone && (
+                          <div className="text-xs text-muted-foreground">Phone: {selectedSale.products_sold.shop_phone}</div>
+                        )}
+                      </div>
+                      <Button variant="outline" onClick={onPrintSelected}>
+                        <Printer className="w-4 h-4 mr-2" /> Print
+                      </Button>
+                    </div>
 
                 <div className="border rounded-md overflow-hidden">
                   <table className="w-full text-sm">

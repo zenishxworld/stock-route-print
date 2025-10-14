@@ -38,6 +38,8 @@ const Auth = () => {
       }
 
       if (data.user) {
+        // Record the device's last successful login time for 12-hour grace period
+        localStorage.setItem("lastLoginAt", Date.now().toString());
         toast({
           title: "Welcome Back!",
           description: "Login successful",
@@ -82,6 +84,8 @@ const Auth = () => {
       if (data.user) {
         // Auto login after signup if email confirmation is disabled
         if (data.session) {
+          // Record the device's last successful login time for 12-hour grace period
+          localStorage.setItem("lastLoginAt", Date.now().toString());
           toast({
             title: "Account Created!",
             description: "Welcome aboard!",

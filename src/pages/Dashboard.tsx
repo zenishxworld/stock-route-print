@@ -13,6 +13,7 @@ import {
   User,
   Package
 } from "lucide-react";
+import { isWithinAuthGracePeriod } from "@/lib/utils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ const Dashboard = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
-      if (!session) {
+      if (!session && !isWithinAuthGracePeriod()) {
         navigate('/auth');
       }
     });
@@ -33,7 +34,7 @@ const Dashboard = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (!session) {
+      if (!session && !isWithinAuthGracePeriod()) {
         navigate('/auth');
       }
     });
@@ -43,6 +44,8 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
+    // Clear grace period on explicit logout
+    try { localStorage.removeItem('lastLoginAt'); } catch {}
     if (error) {
       toast({
         title: "Error",

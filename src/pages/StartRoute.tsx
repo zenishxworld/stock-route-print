@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
 import { ArrowLeft, Route, Package, Plus, Minus, Trash2, RefreshCw } from "lucide-react";
+import { isWithinAuthGracePeriod } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -51,14 +52,14 @@ const StartRoute = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
-      if (!session) {
+      if (!session && !isWithinAuthGracePeriod()) {
         navigate('/auth');
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (!session) {
+      if (!session && !isWithinAuthGracePeriod()) {
         navigate('/auth');
       }
     });
@@ -284,6 +285,7 @@ const StartRoute = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // For actions that require authenticated Supabase operations, we still require a valid session
     if (!user) {
       toast({
         title: "Authentication Required",

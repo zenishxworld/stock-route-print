@@ -45,10 +45,10 @@ const ShopBilling = () => {
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Route-scoped shop details cache (address/phone) helpers
-  const getDetailsKey = (routeId: string) => `shopDetails:${routeId}`;
+  // Global shop details cache (address/phone) helpers
+  const getDetailsKey = (_routeId?: string) => `shopDetails:global`;
   const saveShopDetailsToLocal = (routeId: string, name: string, address?: string, phone?: string) => {
-    if (!routeId || !name) return;
+    if (!name) return;
     const key = getDetailsKey(routeId);
     const existing = JSON.parse(localStorage.getItem(key) || '{}');
     const map = existing && typeof existing === 'object' ? existing : {};
@@ -56,7 +56,7 @@ const ShopBilling = () => {
     localStorage.setItem(key, JSON.stringify(map));
   };
   const getShopDetailsFromLocal = (routeId: string, name: string): { address?: string; phone?: string } | undefined => {
-    if (!routeId || !name) return undefined;
+    if (!name) return undefined;
     const key = getDetailsKey(routeId);
     const existing = JSON.parse(localStorage.getItem(key) || '{}');
     const map = existing && typeof existing === 'object' ? existing : {};
@@ -135,14 +135,6 @@ const ShopBilling = () => {
     if (!updatedHidden.includes(name)) {
       updatedHidden.push(name);
       localStorage.setItem(hiddenKey, JSON.stringify(updatedHidden));
-    }
-
-    // Also purge stored details for this shop
-    const detailsKey = getDetailsKey(routeId);
-    const details = JSON.parse(localStorage.getItem(detailsKey) || '{}');
-    if (details && typeof details === 'object' && details[name]) {
-      delete details[name];
-      localStorage.setItem(detailsKey, JSON.stringify(details));
     }
 
     setShopSuggestions(prev => prev.filter(n => n !== name));
@@ -248,7 +240,7 @@ const ShopBilling = () => {
             if (sale.products_sold) {
               const items = Array.isArray(sale.products_sold)
                 ? (sale.products_sold as any[])
-                : ((sale.products_sold?.items as any[]) || []);
+                : (Array.isArray((sale.products_sold as any)?.items) ? (sale.products_sold as any).items : []);
               const saleItem = items.find(
                 (p: any) => p.productId === product.id
               );

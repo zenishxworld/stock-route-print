@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
+import { seedDefaultProductsIfMissing } from "@/lib/defaultProducts";
 import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X, MapPin, Phone } from "lucide-react";
 
 interface Product {
@@ -191,6 +192,9 @@ const ShopBilling = () => {
       if (routeData) {
         setCurrentRouteName(mapRouteName(routeData.name));
       }
+
+      // Ensure default products exist
+      await seedDefaultProductsIfMissing();
 
       // Fetch products
       const { data: productsData, error: productsError } = await supabase

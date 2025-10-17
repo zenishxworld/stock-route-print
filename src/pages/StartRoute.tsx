@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
+import { seedDefaultProductsIfMissing } from "@/lib/defaultProducts";
 import { ArrowLeft, Route, Package, Plus, Minus, Trash2, RefreshCw } from "lucide-react";
 import { isWithinAuthGracePeriod } from "@/lib/utils";
 
@@ -95,6 +96,9 @@ const StartRoute = () => {
 
   const fetchData = async () => {
     try {
+      // Ensure default products exist before fetching
+      await seedDefaultProductsIfMissing();
+      
       // Fetch products and routes
       const [productsRes, routesRes] = await Promise.all([
         supabase.from("products").select("*").eq("status", "active"),

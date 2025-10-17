@@ -423,6 +423,8 @@ const ShopBilling = () => {
       // Reset form and refresh stock after successful print
       setTimeout(() => {
         setShopName("");
+        setShopAddress("");
+        setShopPhone("");
         setShowBill(false);
         // Refresh stock to get updated available quantities
         fetchProductsAndStock(currentRoute, currentDate);

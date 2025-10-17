@@ -10,6 +10,7 @@ import { mapRouteName } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
 import { seedDefaultProductsIfMissing } from "@/lib/defaultProducts";
 import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X, MapPin, Phone } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface Product {
   id: string;
@@ -45,6 +46,14 @@ const ShopBilling = () => {
   const [shopSuggestions, setShopSuggestions] = useState<string[]>([]);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Add-product dialog state
+  const [showAddProductDialog, setShowAddProductDialog] = useState(false);
+  const [productQuery, setProductQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [unitMode, setUnitMode] = useState<'pcs' | 'box'>('box');
+  const [tempQuantity, setTempQuantity] = useState<number>(0);
+  const [itemUnitModes, setItemUnitModes] = useState<Record<string, 'pcs' | 'box'>>({});
 
   // Global shop details cache (address/phone) helpers
   const getDetailsKey = (_routeId?: string) => `shopDetails:global`;
@@ -285,10 +294,11 @@ const ShopBilling = () => {
   };
 
   const updateQuantity = (productId: string, change: number) => {
+    const step = itemUnitModes[productId] === 'pcs' ? 1 : 5;
     setSaleItems(prev =>
       prev.map(item => {
         if (item.productId === productId) {
-          const newQuantity = Math.max(0, Math.min(item.availableStock, item.quantity + change));
+          const newQuantity = Math.max(0, Math.min(item.availableStock, item.quantity + change * step));
           return {
             ...item,
             quantity: newQuantity,
@@ -330,6 +340,65 @@ const ShopBilling = () => {
         return item;
       })
     );
+  };
+
+  // Quick-add dialog helpers
+  const resetAddProductState = () => {
+    setProductQuery("");
+    setSelectedProduct(null);
+    setUnitMode('box');
+    setTempQuantity(0);
+  };
+
+  const toggleUnitMode = () => {
+    setUnitMode((prev) => {
+      const next = prev === 'box' ? 'pcs' : 'box';
+      if (next === 'pcs' && tempQuantity === 0) {
+        setTempQuantity(1);
+      }
+      return next;
+    });
+  };
+
+  const adjustTempQuantity = (delta: number) => {
+    setTempQuantity((q) => {
+      const step = unitMode === 'pcs' ? 1 : 5;
+      let next = q + delta * step;
+      if (selectedProduct) {
+        const si = saleItems.find((i) => i.productId === selectedProduct.id);
+        const max = si ? si.availableStock : Infinity;
+        next = Math.max(0, Math.min(max, next));
+      } else {
+        next = Math.max(0, next);
+      }
+      return next;
+    });
+  };
+
+  const handleAddProductToSale = () => {
+    if (!selectedProduct) return;
+    const pid = selectedProduct.id;
+    const target = saleItems.find((item) => item.productId === pid);
+    const maxAvail = target ? target.availableStock : 0;
+    const desired = Math.max(0, tempQuantity);
+    const finalQty = Math.min(desired, maxAvail);
+
+    setSaleItems((prev) =>
+      prev.map((item) => {
+        if (item.productId === pid) {
+          const newQty = finalQty;
+          return {
+            ...item,
+            quantity: newQty,
+            total: newQty * item.price,
+          };
+        }
+        return item;
+      })
+    );
+    setItemUnitModes((prev) => ({ ...prev, [pid]: unitMode }));
+    setShowAddProductDialog(false);
+    resetAddProductState();
   };
 
   const calculateTotal = () => {
@@ -659,26 +728,208 @@ const ShopBilling = () => {
                       <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
                       Select Products
                     </Label>
-                    <div className="text-xs sm:text-sm text-muted-foreground">
-                      Items: <span className="font-semibold text-primary">{soldItemsCount}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs sm:text-sm text-muted-foreground">
+                        Items: <span className="font-semibold text-primary">{soldItemsCount}</span>
+                      </div>
+                      <Button variant="default" size="sm" onClick={() => setShowAddProductDialog(true)} className="h-9" title="Quick add product">
+                        Add Product
+                      </Button>
                     </div>
+                  </div>
+
+                  {/* Quick Add Product */}
+                  <Dialog open={showAddProductDialog} onOpenChange={setShowAddProductDialog}>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Add Product</DialogTitle>
+                        <DialogDescription>Search and quickly add a product with unit mode.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm">Search Product</Label>
+                          <Input
+                            autoFocus
+                            placeholder="Type to search by name"
+                            value={productQuery}
+                            onChange={(e) => {
+                              const q = e.target.value;
+                              setProductQuery(q);
+                              const matchList = products
+                                .filter(p => p.name.toLowerCase().includes(q.toLowerCase()))
+                                .filter(p => {
+                                  const si = saleItems.find(s => s.productId === p.id);
+                                  return (si?.availableStock || 0) > 0;
+                                });
+                              const firstMatch = matchList[0];
+                              setSelectedProduct(firstMatch || null);
+                              if (!firstMatch) {
+                                setTempQuantity(0);
+                              }
+                            }}
+                            className="h-10"
+                          />
+                          <div className="max-h-40 overflow-y-auto border rounded-md">
+                            {products
+                              .filter(p => p.name.toLowerCase().includes(productQuery.toLowerCase()))
+                              .filter(p => {
+                                const si = saleItems.find(s => s.productId === p.id);
+                                return (si?.availableStock || 0) > 0;
+                              })
+                              .slice(0, 20)
+                              .map(p => {
+                                 const si = saleItems.find(s => s.productId === p.id);
+                                 const avail = si?.availableStock || 0;
+                                 const boxes = Math.floor(avail / 5);
+                                 const pcs = avail % 5;
+                                 return (
+                                   <button
+                                     key={p.id}
+                                     type="button"
+                                     onClick={() => setSelectedProduct(p)}
+                                     className={`flex w-full items-center justify-between px-3 py-2 text-left hover:bg-muted ${selectedProduct?.id === p.id ? 'bg-muted/60' : ''}`}
+                                   >
+                                     <span className="text-sm">{p.name}</span>
+                                     <span className="text-xs text-muted-foreground">Avail: {boxes} Box, {pcs} pcs</span>
+                                   </button>
+                                 );
+                               })}
+                            {productQuery && products
+                              .filter(p => p.name.toLowerCase().includes(productQuery.toLowerCase()))
+                              .filter(p => {
+                                const si = saleItems.find(s => s.productId === p.id);
+                                return (si?.availableStock || 0) > 0;
+                              }).length === 0 && (
+                              <div className="px-3 py-2 text-xs text-muted-foreground">No matches</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {selectedProduct && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-semibold">{selectedProduct.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                 {(() => {
+                                   const avail = saleItems.find(i => i.productId === selectedProduct.id)?.availableStock ?? 0;
+                                   const boxes = Math.floor(avail / 5);
+                                   const pcs = avail % 5;
+                                   return <>Avail: {boxes} Box, {pcs} pcs</>;
+                                 })()}
+                               </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Button type="button" variant="outline" size="sm" onClick={toggleUnitMode}>
+                                {unitMode === 'pcs' ? '1 pcs' : 'Box'}
+                              </Button>
+                              <span className="text-xs text-muted-foreground">
+                                Step: {unitMode === 'pcs' ? '1' : '5'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Button type="button" variant="outline" size="icon" onClick={() => adjustTempQuantity(-1)} className="h-9 w-9">
+                                <Minus className="w-4 h-4" />
+                              </Button>
+                              <Input
+                                type="number"
+                                value={tempQuantity}
+                                onChange={(e) => {
+                                  const raw = parseInt(e.target.value) || 0;
+                                  const si = saleItems.find(i => i.productId === selectedProduct.id);
+                                  const max = si?.availableStock ?? 0;
+                                  setTempQuantity(Math.max(0, Math.min(max, raw)));
+                                }}
+                                className="w-20 text-center h-9"
+                                inputMode="numeric"
+                                min="0"
+                              />
+                              <Button type="button" variant="outline" size="icon" onClick={() => adjustTempQuantity(1)} className="h-9 w-9">
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <DialogFooter className="sm:justify-end">
+                        <Button variant="ghost" onClick={() => { setShowAddProductDialog(false); resetAddProductState(); }}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAddProductToSale} disabled={!selectedProduct || tempQuantity <= 0}>
+                          Add
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Quick Edit - Added Items */}
+                  <div className="space-y-2">
+                    {saleItems.filter(i => i.quantity > 0).length > 0 && (
+                      <div className="rounded-md border p-3">
+                        <div className="text-sm font-semibold mb-2">Added Items</div>
+                        <div className="space-y-2">
+                          {saleItems.filter(i => i.quantity > 0).map(i => (
+                            <div key={i.productId} className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{i.productName}</span>
+                                <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                                  {itemUnitModes[i.productId] === 'pcs' ? '1 pcs' : 'Box'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(i.productId, -1)} className="h-8 w-8">
+                                  <Minus className="w-4 h-4" />
+                                </Button>
+                                <Input
+                                  type="number"
+                                  value={i.quantity}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, parseInt(e.target.value) || 0);
+                                    setQuantityDirect(i.productId, val);
+                                  }}
+                                  className="w-16 text-center h-8"
+                                  min="0"
+                                  max={i.availableStock}
+                                />
+                                <Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(i.productId, 1)} className="h-8 w-8">
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setQuantityDirect(i.productId, 0);
+                                    setItemUnitModes(prev => {
+                                      const copy = { ...prev };
+                                      delete copy[i.productId];
+                                      return copy;
+                                    });
+                                  }}
+                                  className="h-8 w-8"
+                                  title="Remove"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid gap-3 sm:gap-4">
                     {(
-                      // Sort products: available stock first, out-of-stock at the bottom
+                      // Show only products with available stock
                       products
                         .map((prod, idx) => {
                           const si = saleItems.find(s => s.productId === prod.id);
                           const avail = si?.availableStock || 0;
                           return { prod, idx, avail };
                         })
-                        .sort((a, b) => {
-                          const aOut = a.avail === 0 ? 1 : 0;
-                          const bOut = b.avail === 0 ? 1 : 0;
-                          if (aOut !== bOut) return aOut - bOut; // in-stock first
-                          return a.idx - b.idx; // keep original order within groups
-                        })
+                        .filter(item => item.avail > 0)
                         .map(x => x.prod)
                     ).map((product) => {
                       const saleItem = saleItems.find(s => s.productId === product.id);
@@ -725,6 +976,20 @@ const ShopBilling = () => {
                                 
                                 {/* Quantity Controls */}
                                 <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setItemUnitModes(prev => ({ ...prev, [product.id]: prev[product.id] === 'pcs' ? 'box' : 'pcs' }))}
+                                      disabled={availableStock === 0}
+                                    >
+                                      {itemUnitModes[product.id] === 'pcs' ? '1 pcs' : 'Box'}
+                                    </Button>
+                                    <span className="text-xs text-muted-foreground">
+                                      Step: {itemUnitModes[product.id] === 'pcs' ? '1' : '5'}
+                                    </span>
+                                  </div>
                                   <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
                                   <div className="flex items-center gap-2">
                                     <Button
@@ -770,7 +1035,11 @@ const ShopBilling = () => {
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t">
                                 <div className="space-y-1">
                                   <p className="text-sm font-semibold text-warning">
-                                    Available: {availableStock} units
+                                    {(() => {
+                                      const boxes = Math.floor(availableStock / 5);
+                                      const pcs = availableStock % 5;
+                                      return <>Available: {boxes} Box, {pcs} pcs</>;
+                                    })()}
                                   </p>
                                 </div>
                                 {quantity > 0 && (

@@ -10,7 +10,7 @@ const Index = () => {
             <path d="M3 4a1 1 0 00-1 1v1a1 1 0 001 1h1l1.68 5.39a3 3 0 002.84 2.11h5.95a3 3 0 002.84-2.11L19 8H7a1 1 0 01-1-1V6a1 1 0 00-1-1H3z" />
           </svg>
         </div>
-        <h1 className="text-4xl font-bold text-foreground">Cold Drink Sales</h1>
+        <h1 className="text-4xl font-bold text-foreground">BHAVYA ENTERPRICE</h1>
         <p className="text-xl text-muted-foreground">Professional sales management for drivers and salesmen</p>
         <div className="space-y-4">
           <a 

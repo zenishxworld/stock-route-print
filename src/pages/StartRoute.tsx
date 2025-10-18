@@ -30,6 +30,7 @@ interface RouteOption {
 
 interface StockItem {
   productId: string;
+  unit: 'box' | 'pcs';
   quantity: number;
 }
 
@@ -113,8 +114,8 @@ const StartRoute = () => {
 
       if (productsRes.data) {
         setProducts(productsRes.data);
-        // Initialize stock with all products at 0 quantity
-        setStock(productsRes.data.map(product => ({ productId: product.id, quantity: 0 })));
+        // Initialize stock list as empty; entries are added per product+unit
+        setStock([]);
       }
       
       if (routesRes.data) {
@@ -158,14 +159,11 @@ const StartRoute = () => {
         
         // Load existing stock
         if (data.stock && Array.isArray(data.stock)) {
-          setStock(prev => 
-            prev.map(item => {
-              const existingItem = (data.stock as any[]).find(
-                (s: any) => s.productId === item.productId
-              );
-              return existingItem ? { ...item, quantity: existingItem.quantity } : item;
-            })
-          );
+          setStock((data.stock as any[]).map((s: any) => ({
+            productId: s.productId,
+            unit: s.unit ?? 'pcs',
+            quantity: s.quantity || 0,
+          })));
         }
       }
     } catch (error: any) {
@@ -173,12 +171,11 @@ const StartRoute = () => {
     }
   };
 
-  const updateStock = (productId: string, change: number) => {
-    const step = itemUnitModes[productId] === 'pcs' ? 1 : 5;
+  const updateStock = (productId: string, unit: 'box' | 'pcs', change: number) => {
     setStock(prev => 
       prev.map(item => 
-        item.productId === productId 
-          ? { ...item, quantity: Math.max(0, item.quantity + (change * step)) }
+        item.productId === productId && item.unit === unit
+          ? { ...item, quantity: Math.max(0, item.quantity + change) }
           : item
       )
     );
@@ -407,12 +404,13 @@ const StartRoute = () => {
   const handleAddProductToStock = () => {
     if (!selectedProduct) return;
     const quantity = Math.max(0, tempQuantity);
-    setStock((prev) =>
-      prev.map((item) =>
-        item.productId === selectedProduct.id ? { ...item, quantity } : item
-      )
-    );
-    setItemUnitModes((prev) => ({ ...prev, [selectedProduct.id]: unitMode }));
+    setStock((prev) => {
+      const idx = prev.findIndex(si => si.productId === selectedProduct.id && si.unit === unitMode);
+      if (idx >= 0) {
+        return prev.map((si, i) => i === idx ? { ...si, quantity } : si);
+      }
+      return [...prev, { productId: selectedProduct.id, unit: unitMode, quantity }];
+    });
     setShowAddProductDialog(false);
     resetAddProductState();
   };
@@ -661,7 +659,7 @@ const StartRoute = () => {
                             <div className="flex items-center justify-between">
                               <div className="font-medium">{selectedProduct.name}</div>
                               <Button type="button" variant="secondary" size="sm" onClick={toggleUnitMode}>
-                                {unitMode === 'box' ? 'Box' : '1 pcs'}
+                                Unit: {unitMode === 'box' ? 'Box' : '1 pcs'}
                               </Button>
                             </div>
                             <div className="flex items-center gap-2">
@@ -669,7 +667,7 @@ const StartRoute = () => {
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                onClick={() => adjustTempQuantity(unitMode === 'box' ? -5 : -1)}
+                                onClick={() => adjustTempQuantity(-1)}
                                 disabled={tempQuantity <= 0}
                               >
                                 <Minus className="w-4 h-4" />
@@ -688,7 +686,7 @@ const StartRoute = () => {
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                onClick={() => adjustTempQuantity(unitMode === 'box' ? 5 : 1)}
+                                onClick={() => adjustTempQuantity(1)}
                               >
                                 <Plus className="w-4 h-4" />
                               </Button>
@@ -716,14 +714,14 @@ const StartRoute = () => {
                             if (!product) return null;
                             return (
                               <div
-                                key={item.productId}
+                                key={`${item.productId}-${item.unit}`}
                                 className="flex items-center justify-between rounded-md border px-3 py-2"
                               >
                                 <div className="flex-1 min-w-0">
                                    <div className="flex items-center gap-2">
                                      <div className="font-medium truncate">{product.name}</div>
                                      <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                                       {itemUnitModes[item.productId] === 'pcs' ? '1 pcs' : 'Box'}
+                                       {item.unit === 'pcs' ? '1 pcs' : 'Box'}
                                      </span>
                                    </div>
                                  </div>
@@ -732,7 +730,7 @@ const StartRoute = () => {
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => updateStock(item.productId, -1)}
+                                    onClick={() => updateStock(item.productId, item.unit, -1)}
                                     disabled={item.quantity <= 0}
                                     title="Decrease"
                                   >
@@ -747,7 +745,7 @@ const StartRoute = () => {
                                       const v = Math.max(0, parseInt(e.target.value || "0"));
                                       setStock((prev) =>
                                         prev.map((si) =>
-                                          si.productId === item.productId ? { ...si, quantity: v } : si
+                                          si.productId === item.productId && si.unit === item.unit ? { ...si, quantity: v } : si
                                         )
                                       );
                                     }}
@@ -756,7 +754,7 @@ const StartRoute = () => {
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => updateStock(item.productId, 1)}
+                                    onClick={() => updateStock(item.productId, item.unit, 1)}
                                     title="Increase"
                                   >
                                     <Plus className="w-4 h-4" />
@@ -768,7 +766,7 @@ const StartRoute = () => {
                                     onClick={() => {
                                       setStock((prev) =>
                                         prev.map((si) =>
-                                          si.productId === item.productId ? { ...si, quantity: 0 } : si
+                                          si.productId === item.productId && si.unit === item.unit ? { ...si, quantity: 0 } : si
                                         )
                                       );
                                     }}

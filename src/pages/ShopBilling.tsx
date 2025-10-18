@@ -21,6 +21,7 @@ interface Product {
 interface SaleItem {
   productId: string;
   productName: string;
+  unit: 'box' | 'pcs';
   quantity: number;
   price: number;
   total: number;
@@ -235,43 +236,62 @@ const ShopBilling = () => {
 
       if (salesError && salesError.code !== 'PGRST116') throw salesError;
 
-      // Calculate remaining stock for each product
-      const saleItemsWithStock = productsData.map(product => {
-        // Get initial stock
-        let initialStock = 0;
+      // Calculate remaining stock per unit for each product
+      const saleItemsWithStock = productsData.flatMap(product => {
+        // Get initial stock per unit
+        let initialBox = 0;
+        let initialPcs = 0;
         if (stockData && stockData.stock) {
-          const stockItem = (stockData.stock as any[]).find(
-            (s: any) => s.productId === product.id
-          );
-          initialStock = stockItem?.quantity || 0;
+          const stockItems = stockData.stock as any[];
+          const boxStock = stockItems.find((s: any) => s.productId === product.id && s.unit === 'box');
+          const pcsStock = stockItems.find((s: any) => s.productId === product.id && (s.unit === 'pcs' || !('unit' in s)));
+          initialBox = boxStock?.quantity || 0;
+          initialPcs = pcsStock?.quantity || 0;
         }
 
-        // Calculate total sold
-        let totalSold = 0;
+        // Calculate total sold per unit
+        let soldBox = 0;
+        let soldPcs = 0;
         if (salesData) {
           salesData.forEach(sale => {
             if (sale.products_sold) {
               const items = Array.isArray(sale.products_sold)
                 ? (sale.products_sold as any[])
                 : (Array.isArray((sale.products_sold as any)?.items) ? (sale.products_sold as any).items : []);
-              const saleItem = items.find(
-                (p: any) => p.productId === product.id
-              );
-              totalSold += saleItem?.quantity || 0;
+              items.forEach((p: any) => {
+                if (p.productId === product.id) {
+                  const u = p.unit || 'pcs';
+                  if (u === 'box') soldBox += p.quantity || 0;
+                  else soldPcs += p.quantity || 0;
+                }
+              });
             }
           });
         }
 
-        const availableStock = initialStock - totalSold;
+        const availableBox = Math.max(0, initialBox - soldBox);
+        const availablePcs = Math.max(0, initialPcs - soldPcs);
 
-        return {
-          productId: product.id,
-          productName: product.name,
-          quantity: 0,
-          price: product.price,
-          total: 0,
-          availableStock: Math.max(0, availableStock),
-        };
+        return [
+          {
+            productId: product.id,
+            productName: product.name,
+            unit: 'box' as const,
+            quantity: 0,
+            price: product.price,
+            total: 0,
+            availableStock: availableBox,
+          },
+          {
+            productId: product.id,
+            productName: product.name,
+            unit: 'pcs' as const,
+            quantity: 0,
+            price: product.price,
+            total: 0,
+            availableStock: availablePcs,
+          }
+        ];
       });
 
       setSaleItems(saleItemsWithStock);
@@ -293,12 +313,11 @@ const ShopBilling = () => {
     }
   };
 
-  const updateQuantity = (productId: string, change: number) => {
-    const step = itemUnitModes[productId] === 'pcs' ? 1 : 5;
+  const updateQuantity = (productId: string, unit: 'box' | 'pcs', change: number) => {
     setSaleItems(prev =>
       prev.map(item => {
-        if (item.productId === productId) {
-          const newQuantity = Math.max(0, Math.min(item.availableStock, item.quantity + change * step));
+        if (item.productId === productId && item.unit === unit) {
+          const newQuantity = Math.max(0, Math.min(item.availableStock, item.quantity + change));
           return {
             ...item,
             quantity: newQuantity,
@@ -310,10 +329,10 @@ const ShopBilling = () => {
     );
   };
 
-  const setQuantityDirect = (productId: string, quantity: number) => {
+  const setQuantityDirect = (productId: string, unit: 'box' | 'pcs', quantity: number) => {
     setSaleItems(prev =>
       prev.map(item => {
-        if (item.productId === productId) {
+        if (item.productId === productId && item.unit === unit) {
           const newQuantity = Math.max(0, Math.min(item.availableStock, quantity));
           return {
             ...item,
@@ -326,10 +345,10 @@ const ShopBilling = () => {
     );
   };
 
-  const updatePrice = (productId: string, newPrice: number) => {
+  const updatePrice = (productId: string, unit: 'box' | 'pcs', newPrice: number) => {
     setSaleItems(prev =>
       prev.map(item => {
-        if (item.productId === productId) {
+        if (item.productId === productId && item.unit === unit) {
           const validPrice = Math.max(1, newPrice); // Ensure price >= 1
           return {
             ...item,
@@ -362,10 +381,10 @@ const ShopBilling = () => {
 
   const adjustTempQuantity = (delta: number) => {
     setTempQuantity((q) => {
-      const step = unitMode === 'pcs' ? 1 : 5;
+      const step = 1;
       let next = q + delta * step;
       if (selectedProduct) {
-        const si = saleItems.find((i) => i.productId === selectedProduct.id);
+        const si = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === unitMode);
         const max = si ? si.availableStock : Infinity;
         next = Math.max(0, Math.min(max, next));
       } else {
@@ -378,14 +397,14 @@ const ShopBilling = () => {
   const handleAddProductToSale = () => {
     if (!selectedProduct) return;
     const pid = selectedProduct.id;
-    const target = saleItems.find((item) => item.productId === pid);
+    const target = saleItems.find((item) => item.productId === pid && item.unit === unitMode);
     const maxAvail = target ? target.availableStock : 0;
     const desired = Math.max(0, tempQuantity);
     const finalQty = Math.min(desired, maxAvail);
 
     setSaleItems((prev) =>
       prev.map((item) => {
-        if (item.productId === pid) {
+        if (item.productId === pid && item.unit === unitMode) {
           const newQty = finalQty;
           return {
             ...item,
@@ -396,7 +415,6 @@ const ShopBilling = () => {
         return item;
       })
     );
-    setItemUnitModes((prev) => ({ ...prev, [pid]: unitMode }));
     setShowAddProductDialog(false);
     resetAddProductState();
   };
@@ -447,24 +465,25 @@ const ShopBilling = () => {
       const soldItems = getSoldItems();
       
       const saleData = {
-        auth_user_id: mockUserId,
-        shop_name: shopName,
-        date: currentDate,
-        products_sold: {
-          items: soldItems.map(item => ({
-            productId: item.productId,
-            productName: item.productName,
-            quantity: item.quantity,
-            price: item.price,
-            total: item.total,
-          })),
-          shop_address: shopAddress,
-          shop_phone: shopPhone,
-        },
-        total_amount: calculateTotal(),
-        route_id: currentRoute,
-        truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
-      };
+         auth_user_id: mockUserId,
+         shop_name: shopName,
+         date: currentDate,
+         products_sold: {
+           items: soldItems.map(item => ({
+             productId: item.productId,
+             productName: item.productName,
+             unit: item.unit,
+             quantity: item.quantity,
+             price: item.price,
+             total: item.total,
+           })),
+           shop_address: shopAddress,
+           shop_phone: shopPhone,
+         },
+         total_amount: calculateTotal(),
+         route_id: currentRoute,
+         truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
+       };
 
       // Save sale to database
       const { error } = await supabase.from("sales").insert(saleData);
@@ -758,8 +777,10 @@ const ShopBilling = () => {
                               const matchList = products
                                 .filter(p => p.name.toLowerCase().includes(q.toLowerCase()))
                                 .filter(p => {
-                                  const si = saleItems.find(s => s.productId === p.id);
-                                  return (si?.availableStock || 0) > 0;
+                                  const boxItem = saleItems.find(s => s.productId === p.id && s.unit === 'box');
+                                  const pcsItem = saleItems.find(s => s.productId === p.id && s.unit === 'pcs');
+                                  const totalAvail = (boxItem?.availableStock || 0) + (pcsItem?.availableStock || 0);
+                                  return totalAvail > 0;
                                 });
                               const firstMatch = matchList[0];
                               setSelectedProduct(firstMatch || null);
@@ -773,15 +794,17 @@ const ShopBilling = () => {
                             {products
                               .filter(p => p.name.toLowerCase().includes(productQuery.toLowerCase()))
                               .filter(p => {
-                                const si = saleItems.find(s => s.productId === p.id);
-                                return (si?.availableStock || 0) > 0;
+                                const boxItem = saleItems.find(s => s.productId === p.id && s.unit === 'box');
+                                const pcsItem = saleItems.find(s => s.productId === p.id && s.unit === 'pcs');
+                                const totalAvail = (boxItem?.availableStock || 0) + (pcsItem?.availableStock || 0);
+                                return totalAvail > 0;
                               })
                               .slice(0, 20)
                               .map(p => {
-                                 const si = saleItems.find(s => s.productId === p.id);
-                                 const avail = si?.availableStock || 0;
-                                 const boxes = Math.floor(avail / 5);
-                                 const pcs = avail % 5;
+                                 const boxItem = saleItems.find(s => s.productId === p.id && s.unit === 'box');
+                                 const pcsItem = saleItems.find(s => s.productId === p.id && s.unit === 'pcs');
+                                 const boxAvail = boxItem?.availableStock || 0;
+                                 const pcsAvail = pcsItem?.availableStock || 0;
                                  return (
                                    <button
                                      key={p.id}
@@ -790,16 +813,18 @@ const ShopBilling = () => {
                                      className={`flex w-full items-center justify-between px-3 py-2 text-left hover:bg-muted ${selectedProduct?.id === p.id ? 'bg-muted/60' : ''}`}
                                    >
                                      <span className="text-sm">{p.name}</span>
-                                     <span className="text-xs text-muted-foreground">Avail: {boxes} Box, {pcs} pcs</span>
+                                     <span className="text-xs text-muted-foreground">Avail: {boxAvail} Box, {pcsAvail} pcs</span>
                                    </button>
                                  );
                                })}
                             {productQuery && products
-                              .filter(p => p.name.toLowerCase().includes(productQuery.toLowerCase()))
-                              .filter(p => {
-                                const si = saleItems.find(s => s.productId === p.id);
-                                return (si?.availableStock || 0) > 0;
-                              }).length === 0 && (
+                                .filter(p => p.name.toLowerCase().includes(productQuery.toLowerCase()))
+                                .filter(p => {
+                                  const boxItem = saleItems.find(s => s.productId === p.id && s.unit === 'box');
+                                  const pcsItem = saleItems.find(s => s.productId === p.id && s.unit === 'pcs');
+                                  const totalAvail = (boxItem?.availableStock || 0) + (pcsItem?.availableStock || 0);
+                                  return totalAvail > 0;
+                                }).length === 0 && (
                               <div className="px-3 py-2 text-xs text-muted-foreground">No matches</div>
                             )}
                           </div>
@@ -811,20 +836,21 @@ const ShopBilling = () => {
                               <div className="text-sm font-semibold">{selectedProduct.name}</div>
                               <div className="text-xs text-muted-foreground">
                                  {(() => {
-                                   const avail = saleItems.find(i => i.productId === selectedProduct.id)?.availableStock ?? 0;
-                                   const boxes = Math.floor(avail / 5);
-                                   const pcs = avail % 5;
-                                   return <>Avail: {boxes} Box, {pcs} pcs</>;
+                                   const boxItem = saleItems.find(i => i.productId === selectedProduct.id && i.unit === 'box');
+                                   const pcsItem = saleItems.find(i => i.productId === selectedProduct.id && i.unit === 'pcs');
+                                   const boxAvail = boxItem?.availableStock ?? 0;
+                                   const pcsAvail = pcsItem?.availableStock ?? 0;
+                                   return <>Avail: {boxAvail} Box, {pcsAvail} pcs</>;
                                  })()}
                                </div>
                             </div>
 
                             <div className="flex items-center gap-2">
                               <Button type="button" variant="outline" size="sm" onClick={toggleUnitMode}>
-                                {unitMode === 'pcs' ? '1 pcs' : 'Box'}
+                                {unitMode === 'pcs' ? 'pcs' : 'Box'}
                               </Button>
                               <span className="text-xs text-muted-foreground">
-                                Step: {unitMode === 'pcs' ? '1' : '5'}
+                                Step: 1
                               </span>
                             </div>
 
@@ -837,7 +863,7 @@ const ShopBilling = () => {
                                 value={tempQuantity}
                                 onChange={(e) => {
                                   const raw = parseInt(e.target.value) || 0;
-                                  const si = saleItems.find(i => i.productId === selectedProduct.id);
+                                  const si = saleItems.find(i => i.productId === selectedProduct.id && i.unit === unitMode);
                                   const max = si?.availableStock ?? 0;
                                   setTempQuantity(Math.max(0, Math.min(max, raw)));
                                 }}
@@ -870,15 +896,15 @@ const ShopBilling = () => {
                         <div className="text-sm font-semibold mb-2">Added Items</div>
                         <div className="space-y-2">
                           {saleItems.filter(i => i.quantity > 0).map(i => (
-                            <div key={i.productId} className="flex items-center justify-between gap-2">
+                            <div key={`${i.productId}-${i.unit}`} className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm">{i.productName}</span>
                                 <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                                  {itemUnitModes[i.productId] === 'pcs' ? '1 pcs' : 'Box'}
+                                  {i.unit === 'pcs' ? 'pcs' : 'Box'}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(i.productId, -1)} className="h-8 w-8">
+                                <Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(i.productId, i.unit, -1)} className="h-8 w-8">
                                   <Minus className="w-4 h-4" />
                                 </Button>
                                 <Input
@@ -886,13 +912,13 @@ const ShopBilling = () => {
                                   value={i.quantity}
                                   onChange={(e) => {
                                     const val = Math.max(0, parseInt(e.target.value) || 0);
-                                    setQuantityDirect(i.productId, val);
+                                    setQuantityDirect(i.productId, i.unit, val);
                                   }}
                                   className="w-16 text-center h-8"
                                   min="0"
                                   max={i.availableStock}
                                 />
-                                <Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(i.productId, 1)} className="h-8 w-8">
+                                <Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(i.productId, i.unit, 1)} className="h-8 w-8">
                                   <Plus className="w-4 h-4" />
                                 </Button>
                                 <Button
@@ -900,12 +926,7 @@ const ShopBilling = () => {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => {
-                                    setQuantityDirect(i.productId, 0);
-                                    setItemUnitModes(prev => {
-                                      const copy = { ...prev };
-                                      delete copy[i.productId];
-                                      return copy;
-                                    });
+                                    setQuantityDirect(i.productId, i.unit, 0);
                                   }}
                                   className="h-8 w-8"
                                   title="Remove"
@@ -922,19 +943,27 @@ const ShopBilling = () => {
 
                   <div className="grid gap-3 sm:gap-4">
                     {(
-                      // Show only products with available stock
+                      // Show only products with available stock across units
                       products
                         .map((prod, idx) => {
-                          const si = saleItems.find(s => s.productId === prod.id);
-                          const avail = si?.availableStock || 0;
+                          const boxItem = saleItems.find(s => s.productId === prod.id && s.unit === 'box');
+                          const pcsItem = saleItems.find(s => s.productId === prod.id && s.unit === 'pcs');
+                          const avail = (boxItem?.availableStock || 0) + (pcsItem?.availableStock || 0);
                           return { prod, idx, avail };
                         })
                         .filter(item => item.avail > 0)
                         .map(x => x.prod)
                     ).map((product) => {
-                      const saleItem = saleItems.find(s => s.productId === product.id);
-                      const quantity = saleItem?.quantity || 0;
-                      const availableStock = saleItem?.availableStock || 0;
+                      const boxItem = saleItems.find(s => s.productId === product.id && s.unit === 'box');
+                      const pcsItem = saleItems.find(s => s.productId === product.id && s.unit === 'pcs');
+                      const boxAvail = boxItem?.availableStock || 0;
+                      const pcsAvail = pcsItem?.availableStock || 0;
+                      const boxQty = boxItem?.quantity || 0;
+                      const pcsQty = pcsItem?.quantity || 0;
+                      const boxPrice = boxItem?.price ?? product.price;
+                      const pcsPrice = pcsItem?.price ?? product.price;
+                      const availableStock = boxAvail + pcsAvail;
+                      const lineTotal = (boxItem?.total || 0) + (pcsItem?.total || 0);
 
                       return (
                         <Card key={product.id} className={`border transition-colors active:border-primary ${
@@ -953,99 +982,142 @@ const ShopBilling = () => {
                               </div>
                               
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {/* Price Input */}
-                                <div className="space-y-1">
-                                  <Label className="text-xs font-medium text-muted-foreground">Unit Price (₹)</Label>
-                                  <Input
-                                    type="number"
-                                    value={saleItem?.price || product.price}
-                                    onChange={(e) => {
-                                      const newPrice = parseFloat(e.target.value) || product.price;
-                                      updatePrice(product.id, newPrice);
-                                    }}
-                                    className="h-9 text-sm"
-                                    min="1"
-                                    step="0.01"
-                                    disabled={availableStock === 0}
-                                    placeholder={`${product.price}`}
-                                  />
-                                  <p className="text-xs text-muted-foreground">
-                                    Default: ₹{product.price.toFixed(2)}
-                                  </p>
-                                </div>
-                                
-                                {/* Quantity Controls */}
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setItemUnitModes(prev => ({ ...prev, [product.id]: prev[product.id] === 'pcs' ? 'box' : 'pcs' }))}
-                                      disabled={availableStock === 0}
-                                    >
-                                      {itemUnitModes[product.id] === 'pcs' ? '1 pcs' : 'Box'}
-                                    </Button>
-                                    <span className="text-xs text-muted-foreground">
-                                      Step: {itemUnitModes[product.id] === 'pcs' ? '1' : '5'}
-                                    </span>
+                                {/* Box Unit Row */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-muted-foreground">Unit: Box</span>
+                                    <span className="text-xs text-muted-foreground">Avail: {boxAvail} Box</span>
                                   </div>
-                                  <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => updateQuantity(product.id, -1)}
-                                      disabled={quantity === 0}
-                                      className="h-9 w-9 touch-manipulation"
-                                    >
-                                      <Minus className="w-4 h-4" />
-                                    </Button>
-                                    
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label>
                                     <Input
                                       type="number"
-                                      value={quantity}
+                                      value={boxPrice}
                                       onChange={(e) => {
-                                        const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
-                                        setQuantityDirect(product.id, newQuantity);
+                                        const newPrice = parseFloat(e.target.value) || product.price;
+                                        updatePrice(product.id, 'box', newPrice);
                                       }}
-                                      max={availableStock}
-                                      className="w-16 text-center text-sm h-9"
-                                      min="0"
-                                      inputMode="numeric"
-                                      disabled={availableStock === 0}
+                                      className="h-9 text-sm"
+                                      min="1"
+                                      step="0.01"
+                                      disabled={boxAvail === 0}
+                                      placeholder={`${product.price}`}
                                     />
-                                    
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => updateQuantity(product.id, 1)}
-                                      disabled={quantity >= availableStock || availableStock === 0}
-                                      className="h-9 w-9 touch-manipulation"
-                                    >
-                                      <Plus className="w-4 h-4" />
-                                    </Button>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-muted-foreground">Quantity (Box)</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => updateQuantity(product.id, 'box', -1)}
+                                        disabled={boxQty === 0}
+                                        className="h-9 w-9"
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        value={boxQty}
+                                        onChange={(e) => {
+                                          const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
+                                          setQuantityDirect(product.id, 'box', newQuantity);
+                                        }}
+                                        max={boxAvail}
+                                        className="w-16 text-center text-sm h-9"
+                                        min="0"
+                                        inputMode="numeric"
+                                        disabled={boxAvail === 0}
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => updateQuantity(product.id, 'box', 1)}
+                                        disabled={boxQty >= boxAvail || boxAvail === 0}
+                                        className="h-9 w-9"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Pcs Unit Row */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-muted-foreground">Unit: 1 pcs</span>
+                                    <span className="text-xs text-muted-foreground">Avail: {pcsAvail} pcs</span>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label>
+                                    <Input
+                                      type="number"
+                                      value={pcsPrice}
+                                      onChange={(e) => {
+                                        const newPrice = parseFloat(e.target.value) || product.price;
+                                        updatePrice(product.id, 'pcs', newPrice);
+                                      }}
+                                      className="h-9 text-sm"
+                                      min="1"
+                                      step="0.01"
+                                      disabled={pcsAvail === 0}
+                                      placeholder={`${product.price}`}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-muted-foreground">Quantity (pcs)</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => updateQuantity(product.id, 'pcs', -1)}
+                                        disabled={pcsQty === 0}
+                                        className="h-9 w-9"
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        value={pcsQty}
+                                        onChange={(e) => {
+                                          const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
+                                          setQuantityDirect(product.id, 'pcs', newQuantity);
+                                        }}
+                                        max={pcsAvail}
+                                        className="w-16 text-center text-sm h-9"
+                                        min="0"
+                                        inputMode="numeric"
+                                        disabled={pcsAvail === 0}
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => updateQuantity(product.id, 'pcs', 1)}
+                                        disabled={pcsQty >= pcsAvail || pcsAvail === 0}
+                                        className="h-9 w-9"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                              
+
                               {/* Stock and Total Info */}
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t">
                                 <div className="space-y-1">
                                   <p className="text-sm font-semibold text-warning">
-                                    {(() => {
-                                      const boxes = Math.floor(availableStock / 5);
-                                      const pcs = availableStock % 5;
-                                      return <>Available: {boxes} Box, {pcs} pcs</>;
-                                    })()}
+                                    Available: {boxAvail} Box, {pcsAvail} pcs
                                   </p>
                                 </div>
-                                {quantity > 0 && (
+                                {(boxQty + pcsQty) > 0 && (
                                   <div className="text-right">
                                     <p className="text-sm font-semibold text-success-green">
-                                      Line Total: ₹{(quantity * (saleItem?.price || product.price)).toFixed(2)}
+                                      Line Total: ₹{lineTotal.toFixed(2)}
                                     </p>
                                   </div>
                                 )}
@@ -1181,9 +1253,9 @@ const ShopBilling = () => {
                       </thead>
                       <tbody>
                         {getSoldItems().map((item, index) => (
-                          <tr key={item.productId} className="border-b border-border">
+                          <tr key={`${item.productId}-${item.unit}-${index}`} className="border-b border-border">
                             <td className="py-3 text-foreground print:text-[11px] print:py-1">{item.productName}</td>
-                            <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity}</td>
+                            <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}</td>
                             <td className="py-3 text-right text-foreground print:text-[11px] print:py-1">₹{item.price.toFixed(2)}</td>
                             <td className="py-3 text-right font-semibold text-foreground print:text-[11px] print:py-1">₹{item.total.toFixed(2)}</td>
                           </tr>

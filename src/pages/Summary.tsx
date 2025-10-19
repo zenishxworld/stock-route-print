@@ -33,6 +33,21 @@ interface SummaryItem {
   totalRevenue: number;
 }
 
+// Normalize sales.products_sold to a flat array of items
+function normalizeSaleProducts(ps: any): any[] {
+  if (!ps) return [];
+  if (Array.isArray(ps)) return ps;
+  if (Array.isArray(ps?.items)) return ps.items;
+  if (typeof ps === 'string') {
+    try {
+      const parsed = JSON.parse(ps);
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed?.items)) return parsed.items;
+    } catch {}
+  }
+  return [];
+}
+
 const Summary = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -115,7 +130,7 @@ const Summary = () => {
         .select("*")
         .eq("route_id", selectedRoute)
         .eq("date", selectedDate)
-        .single();
+        .maybeSingle();
 
       // Fetch all sales for the selected date and route
       const { data: sales, error: salesError } = await supabase
@@ -131,25 +146,40 @@ const Summary = () => {
       
       if (products) {
         products.forEach(product => {
-          // Get initial stock for this product
-          let startQty = 0;
-          if (dailyStock && dailyStock.stock) {
-            const stockItem = (dailyStock.stock as any[]).find(
-              (s: any) => s.productId === product.id
-            );
-            startQty = stockItem?.quantity || 0;
+          // Compute initial stock in pcs (box*24 + pcs)
+          let startBox = 0;
+          let startPcs = 0;
+          if (dailyStock && dailyStock.stock && Array.isArray(dailyStock.stock)) {
+            const stockItems = dailyStock.stock as any[];
+            const boxStock = stockItems.find((s: any) => s.productId === product.id && s.unit === 'box');
+            const pcsStock = stockItems.find((s: any) => s.productId === product.id && (s.unit === 'pcs' || !('unit' in s)));
+            startBox = boxStock?.quantity || 0;
+            startPcs = pcsStock?.quantity || 0;
           }
+          const startQty = (startBox * 24) + startPcs;
 
-          // Calculate total sold quantity
+          // Calculate total sold quantity in pcs and revenue from line items
           let soldQty = 0;
+          let totalRevenue = 0;
+          const boxPrice = product.price; // box_price is not in the Product type, fallback to price
+          const pcsPrice = (product as any).pcs_price ?? (((product as any).box_price ?? product.price) / 24);
+
           if (sales) {
             sales.forEach(sale => {
-              if (sale.products_sold) {
-                const saleItem = (sale.products_sold as any[]).find(
-                  (p: any) => p.productId === product.id
-                );
-                soldQty += saleItem?.quantity || 0;
-              }
+              const items = normalizeSaleProducts(sale.products_sold);
+              items.forEach((p: any) => {
+                if (p.productId === product.id) {
+                  const u = p.unit || 'pcs';
+                  const q = p.quantity || 0;
+                  // Sum sold pcs
+                  soldQty += u === 'box' ? (q * 24) : q;
+                  // Sum revenue using saved total or fallback to price
+                  const lineTotal = typeof p.total === 'number'
+                    ? p.total
+                    : q * (typeof p.price === 'number' ? p.price : (u === 'box' ? boxPrice : pcsPrice));
+                  totalRevenue += lineTotal;
+                }
+              });
             });
           }
 
@@ -160,9 +190,9 @@ const Summary = () => {
               productName: product.name,
               startQty,
               soldQty,
-              remainingQty: startQty - soldQty,
-              price: product.price,
-              totalRevenue: soldQty * product.price,
+              remainingQty: Math.max(0, startQty - soldQty),
+              price: boxPrice,
+              totalRevenue,
             });
           }
         });
@@ -214,7 +244,8 @@ const Summary = () => {
     const route = routes.find(r => r.id === selectedRoute);
     if (!route) return "Unknown Route";
     
-    return mapRouteName(route.name);
+    // route names are already mapped in fetchRoutes
+    return route.name;
   };
 
   return (

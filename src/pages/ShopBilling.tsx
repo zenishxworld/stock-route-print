@@ -251,9 +251,8 @@ const ShopBilling = () => {
           initialPcs = pcsStock?.quantity || 0;
         }
 
-        // Calculate total sold per unit
-        let soldBox = 0;
-        let soldPcs = 0;
+        // Calculate total sold in PCS across units
+        let soldTotalPCS = 0;
         if (salesData) {
           salesData.forEach(sale => {
             if (sale.products_sold) {
@@ -262,17 +261,19 @@ const ShopBilling = () => {
                 : (Array.isArray((sale.products_sold as any)?.items) ? (sale.products_sold as any).items : []);
               items.forEach((p: any) => {
                 if (p.productId === product.id) {
-                  const u = p.unit || 'pcs';
-                  if (u === 'box') soldBox += p.quantity || 0;
-                  else soldPcs += p.quantity || 0;
+                  const u = (p.unit || 'pcs');
+                  const q = p.quantity || 0;
+                  soldTotalPCS += u === 'box' ? (q * 24) : q;
                 }
               });
             }
           });
         }
 
-        const availableBox = Math.max(0, initialBox - soldBox);
-        const availablePcs = Math.max(0, initialPcs - soldPcs);
+        const initialTotalPCS = (initialBox * 24) + initialPcs;
+        const remainingTotalPCS = Math.max(0, initialTotalPCS - soldTotalPCS);
+        const availableBox = Math.floor(remainingTotalPCS / 24);
+        const availablePcs = remainingTotalPCS % 24;
 
         return [
           {
@@ -280,7 +281,7 @@ const ShopBilling = () => {
             productName: product.name,
             unit: 'box' as const,
             quantity: 0,
-            price: (product.box_price ?? UNIT_PRICE_MAP[product.name.trim().toLowerCase()]?.box ?? product.price),
+            price: (product as any).box_price ?? UNIT_PRICE_MAP[product.name.trim().toLowerCase()]?.box ?? product.price,
             total: 0,
             availableStock: availableBox,
           },
@@ -289,7 +290,7 @@ const ShopBilling = () => {
             productName: product.name,
             unit: 'pcs' as const,
             quantity: 0,
-            price: (product.pcs_price ?? UNIT_PRICE_MAP[product.name.trim().toLowerCase()]?.pcs ?? product.price),
+            price: ((product as any).pcs_price ?? UNIT_PRICE_MAP[product.name.trim().toLowerCase()]?.pcs ?? (((product as any).box_price ?? product.price) / 24)),
             total: 0,
             availableStock: availablePcs,
           }
@@ -316,10 +317,19 @@ const ShopBilling = () => {
   };
 
   const updateQuantity = (productId: string, unit: 'box' | 'pcs', change: number) => {
-    setSaleItems(prev =>
-      prev.map(item => {
+    setSaleItems(prev => {
+      const boxItem = prev.find(i => i.productId === productId && i.unit === 'box');
+      const pcsItem = prev.find(i => i.productId === productId && i.unit === 'pcs');
+      const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
+      const otherQty = unit === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
+      const maxAllowed = unit === 'box'
+        ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
+        : Math.max(0, totalRemainPCS - (otherQty * 24));
+
+      return prev.map(item => {
         if (item.productId === productId && item.unit === unit) {
-          const newQuantity = Math.max(0, Math.min(item.availableStock, item.quantity + change));
+          const desired = item.quantity + change;
+          const newQuantity = Math.max(0, Math.min(maxAllowed, desired));
           return {
             ...item,
             quantity: newQuantity,
@@ -327,15 +337,24 @@ const ShopBilling = () => {
           };
         }
         return item;
-      })
-    );
+      });
+    });
   };
 
   const setQuantityDirect = (productId: string, unit: 'box' | 'pcs', quantity: number) => {
-    setSaleItems(prev =>
-      prev.map(item => {
+    setSaleItems(prev => {
+      const boxItem = prev.find(i => i.productId === productId && i.unit === 'box');
+      const pcsItem = prev.find(i => i.productId === productId && i.unit === 'pcs');
+      const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
+      const otherQty = unit === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
+      const maxAllowed = unit === 'box'
+        ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
+        : Math.max(0, totalRemainPCS - (otherQty * 24));
+
+      return prev.map(item => {
         if (item.productId === productId && item.unit === unit) {
-          const newQuantity = Math.max(0, Math.min(item.availableStock, quantity));
+          const desired = quantity;
+          const newQuantity = Math.max(0, Math.min(maxAllowed, desired));
           return {
             ...item,
             quantity: newQuantity,
@@ -343,8 +362,8 @@ const ShopBilling = () => {
           };
         }
         return item;
-      })
-    );
+      });
+    });
   };
 
   const updatePrice = (productId: string, unit: 'box' | 'pcs', newPrice: number) => {
@@ -386,9 +405,14 @@ const ShopBilling = () => {
       const step = 1;
       let next = q + delta * step;
       if (selectedProduct) {
-        const si = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === unitMode);
-        const max = si ? si.availableStock : Infinity;
-        next = Math.max(0, Math.min(max, next));
+        const boxItem = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === 'box');
+        const pcsItem = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === 'pcs');
+        const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
+        const otherQty = unitMode === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
+        const maxAllowed = unitMode === 'box'
+          ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
+          : Math.max(0, totalRemainPCS - (otherQty * 24));
+        next = Math.max(0, Math.min(maxAllowed, next));
       } else {
         next = Math.max(0, next);
       }
@@ -399,10 +423,17 @@ const ShopBilling = () => {
   const handleAddProductToSale = () => {
     if (!selectedProduct) return;
     const pid = selectedProduct.id;
-    const target = saleItems.find((item) => item.productId === pid && item.unit === unitMode);
-    const maxAvail = target ? target.availableStock : 0;
+
+    const boxItem = saleItems.find((i) => i.productId === pid && i.unit === 'box');
+    const pcsItem = saleItems.find((i) => i.productId === pid && i.unit === 'pcs');
+    const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
+    const otherQty = unitMode === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
+    const maxAllowed = unitMode === 'box'
+      ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
+      : Math.max(0, totalRemainPCS - (otherQty * 24));
+
     const desired = Math.max(0, tempQuantity);
-    const finalQty = Math.min(desired, maxAvail);
+    const finalQty = Math.min(desired, maxAllowed);
 
     setSaleItems((prev) =>
       prev.map((item) => {
@@ -962,8 +993,8 @@ const ShopBilling = () => {
                       const pcsAvail = pcsItem?.availableStock || 0;
                       const boxQty = boxItem?.quantity || 0;
                       const pcsQty = pcsItem?.quantity || 0;
-                      const boxPrice = boxItem?.price ?? product.price;
-                      const pcsPrice = pcsItem?.price ?? product.price;
+                      const boxPrice = boxItem?.price ?? (product.box_price ?? product.price);
+                      const pcsPrice = pcsItem?.price ?? (product.pcs_price ?? ((product.box_price ?? product.price) / 24));
                       const availableStock = boxAvail + pcsAvail;
                       const lineTotal = (boxItem?.total || 0) + (pcsItem?.total || 0);
 
@@ -1003,7 +1034,7 @@ const ShopBilling = () => {
                                       min="1"
                                       step="0.01"
                                       disabled={boxAvail === 0}
-                                      placeholder={`${product.price}`}
+                                      placeholder={`${product.box_price ?? product.price}`}
                                     />
                                   </div>
                                   <div className="space-y-1">
@@ -1065,7 +1096,7 @@ const ShopBilling = () => {
                                       min="1"
                                       step="0.01"
                                       disabled={pcsAvail === 0}
-                                      placeholder={`${product.price}`}
+                                      placeholder={`${product.pcs_price ?? ((product.box_price ?? product.price) / 24)}`}
                                     />
                                   </div>
                                   <div className="space-y-1">

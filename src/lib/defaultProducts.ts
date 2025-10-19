@@ -86,10 +86,10 @@ export async function seedDefaultProductsIfMissing(): Promise<void> {
         const key = n.trim().toLowerCase();
         const unit = UNIT_PRICE_MAP[key];
         const pcsPrice = unit?.pcs ?? stablePrice(n);
-        const boxPrice = unit?.box ?? pcsPrice; // if unknown, mirror pcs price
+        const boxPrice = unit?.box ?? pcsPrice * 24; // enforce 24 pcs per box
         return {
           name: n,
-          price: pcsPrice, // base price remains pcs price for compatibility
+          price: boxPrice, // treat legacy price as box price
           pcs_price: pcsPrice,
           box_price: boxPrice,
           description: null,
@@ -107,17 +107,36 @@ export async function seedDefaultProductsIfMissing(): Promise<void> {
       .map((p: any) => {
         const key = (p.name || "").trim().toLowerCase();
         const unit = UNIT_PRICE_MAP[key];
-        if (!unit) return null;
         const needPcs = p.pcs_price == null;
         const needBox = p.box_price == null;
         if (!needPcs && !needBox) return null;
-        return { id: p.id, pcs_price: needPcs ? unit.pcs : p.pcs_price, box_price: needBox ? unit.box : p.box_price };
+
+        const resolvedPcs = needPcs
+          ? (p.box_price != null
+              ? Number(p.box_price) / 24
+              : (p.price != null
+                  ? Number(p.price) / 24
+                  : (unit?.pcs ?? stablePrice(p.name || ""))))
+          : Number(p.pcs_price);
+
+        const resolvedBox = needBox
+          ? (p.pcs_price != null
+              ? Number(p.pcs_price) * 24
+              : (p.price != null
+                  ? Number(p.price)
+                  : resolvedPcs * 24))
+          : Number(p.box_price);
+
+        return { id: p.id, pcs_price: resolvedPcs, box_price: resolvedBox };
       })
       .filter(Boolean) as Array<{ id: string; pcs_price: number; box_price: number }>;
 
     if (updates.length > 0) {
       // Upsert by id: ensures we only update existing rows
-      const { error: updateError } = await supabase.from("products").upsert(updates);
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ price: updates[0].box_price })
+        .eq("id", updates[0].id);
       if (updateError) throw updateError;
     }
   } catch (e) {

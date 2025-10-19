@@ -476,7 +476,7 @@ const StartRoute = () => {
                   <Route className="w-4 h-4" />
                   Select Route
                 </Label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Select value={selectedRoute} onValueChange={setSelectedRoute} required>
                     <SelectTrigger className="h-11 sm:h-10 text-base flex-1">
                       <SelectValue placeholder="Choose your route" />
@@ -486,8 +486,8 @@ const StartRoute = () => {
                         const isCustomRoute = !['Route 1', 'Route 2', 'Route 3'].includes(route.displayName || route.name);
                         return (
                           <div key={route.id} className="flex items-center justify-between group">
-                            <SelectItem value={route.id} className="text-base py-3 flex-1">
-                              {route.displayName || route.name}
+                            <SelectItem value={route.id} className="text-base py-3 flex-1 min-w-0">
+                              <span className="block truncate">{route.displayName || route.name}</span>
                             </SelectItem>
                             {isCustomRoute && (
                               <AlertDialog>
@@ -717,17 +717,17 @@ const StartRoute = () => {
                             return (
                               <div
                                 key={`${item.productId}-${item.unit}`}
-                                className="flex items-center justify-between rounded-md border px-3 py-2"
+                                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border px-3 py-2"
                               >
                                 <div className="flex-1 min-w-0">
-                                   <div className="flex items-center gap-2">
-                                     <div className="font-medium truncate">{product.name}</div>
-                                     <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                                       {item.unit === 'pcs' ? '1 pcs' : 'Box'}
-                                     </span>
-                                   </div>
-                                 </div>
-                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="font-medium truncate">{product.name}</div>
+                                    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground flex-shrink-0">
+                                      {item.unit === 'pcs' ? '1 pcs' : 'Box'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end w-full sm:w-auto">
                                   <Button
                                     type="button"
                                     variant="outline"
@@ -740,7 +740,7 @@ const StartRoute = () => {
                                   </Button>
                                   <Input
                                     type="number"
-                                    className="w-20 text-center"
+                                    className="w-16 sm:w-20 text-center"
                                     value={item.quantity}
                                     min={0}
                                     onChange={(e) => {

@@ -42,7 +42,8 @@ const AddProduct = () => {
   
   // Form state
   const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
+  const [boxPrice, setBoxPrice] = useState("");
+  const [pcsPrice, setPcsPrice] = useState("");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
@@ -69,7 +70,8 @@ const AddProduct = () => {
 
   const resetForm = () => {
     setName("");
-    setPrice("");
+    setBoxPrice("");
+    setPcsPrice("");
     setDescription("");
     setEditingId(null);
   };
@@ -77,7 +79,10 @@ const AddProduct = () => {
   const handleEdit = (product: Product) => {
     setEditingId(product.id);
     setName(product.name);
-    setPrice(product.price.toString());
+    const baseBox = product.box_price ?? product.price;
+    const basePcs = product.pcs_price ?? (baseBox ? baseBox / 24 : 0);
+    setBoxPrice((baseBox || 0).toString());
+    setPcsPrice(basePcs ? basePcs.toFixed(2) : "");
     setDescription(product.description || "");
     // Scroll to top
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -88,27 +93,29 @@ const AddProduct = () => {
     setLoading(true);
 
     try {
-      const priceValue = parseFloat(price);
-      
-      if (isNaN(priceValue) || priceValue <= 0) {
+      const boxValue = parseFloat(boxPrice);
+      if (!Number.isFinite(boxValue) || boxValue <= 0) {
         toast({
-          title: "Invalid Price",
-          description: "Please enter a valid price greater than 0",
+          title: "Invalid Box Price",
+          description: "Please enter a valid box price greater than 0",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
+      const pcsValue = parseFloat((boxValue / 24).toFixed(2));
+
       const productData = {
         name: name.trim(),
-        price: priceValue,
+        price: boxValue,
+        pcs_price: pcsValue,
+        box_price: boxValue,
         description: description.trim() || null,
         status: "active",
       };
 
       if (editingId) {
-        // Update existing product
         const { error } = await supabase
           .from("products")
           .update(productData)
@@ -116,7 +123,6 @@ const AddProduct = () => {
 
         if (error) throw error;
 
-        // Notify other pages about the update
         console.log('AddProduct: Notifying about product update', editingId, productData);
         notifyProductUpdate(editingId, productData);
 
@@ -125,7 +131,6 @@ const AddProduct = () => {
           description: `${name} has been updated successfully`,
         });
       } else {
-        // Add new product
         const { data, error } = await supabase
           .from("products")
           .insert(productData)
@@ -134,7 +139,6 @@ const AddProduct = () => {
 
         if (error) throw error;
 
-        // Notify other pages about the new product
         console.log('AddProduct: Notifying about new product', data.id, productData);
         notifyProductUpdate(data.id, productData);
 
@@ -257,20 +261,41 @@ const AddProduct = () => {
 
               {/* Price */}
               <div className="space-y-2">
-                <Label htmlFor="price" className="text-sm sm:text-base font-semibold">
-                  Price (₹) *
+                <Label htmlFor="box_price" className="text-sm sm:text-base font-semibold">
+                  Box Price (₹) *
                 </Label>
                 <Input
-                  id="price"
+                  id="box_price"
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="e.g., 20.00"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="e.g., 240.00"
+                  value={boxPrice}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setBoxPrice(v);
+                    const num = parseFloat(v);
+                    setPcsPrice(Number.isFinite(num) && num > 0 ? (num / 24).toFixed(2) : "");
+                  }}
                   className="h-11 sm:h-10 text-base"
                   inputMode="decimal"
                   required
+                />
+                <p className="mt-1 text-xs text-muted-foreground">PCS is auto-calculated as Box ÷ 24</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pcs_price" className="text-sm sm:text-base font-semibold">
+                  PCS Price (₹)
+                </Label>
+                <Input
+                  id="pcs_price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={pcsPrice}
+                  readOnly
+                  disabled
+                  className="h-11 sm:h-10 text-base"
                 />
               </div>
 
@@ -347,13 +372,16 @@ const AddProduct = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {activeProducts.map((product) => (
+                {activeProducts.map((product) => {
+                  const boxPrice = product.box_price ?? product.price ?? ((product.pcs_price ?? 0) * 24);
+                  const pcsPrice = product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / 24);
+                  return (
                   <Card key={product.id} className="border border-border hover:border-primary/50 transition-colors">
                     <CardContent className="p-3 sm:p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-foreground text-base mb-1">{product.name}</h4>
-                          <p className="text-lg font-bold text-primary mb-1">₹{product.price.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground mb-1">Box: ₹{boxPrice.toFixed(2)} · PCS: ₹{pcsPrice.toFixed(2)}</p>
                           {product.description && (
                             <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                           )}
@@ -382,7 +410,8 @@ const AddProduct = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
                 
                 {inactiveProducts.length > 0 && (
                   <>
@@ -391,13 +420,16 @@ const AddProduct = () => {
                         Inactive Products ({inactiveProducts.length})
                       </h4>
                     </div>
-                    {inactiveProducts.map((product) => (
+                    {inactiveProducts.map((product) => {
+                      const boxPrice = product.box_price ?? product.price ?? ((product.pcs_price ?? 0) * 24);
+                      const pcsPrice = product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / 24);
+                      return (
                       <Card key={product.id} className="border border-border opacity-60">
                         <CardContent className="p-3 sm:p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <h4 className="font-semibold text-foreground text-base mb-1">{product.name}</h4>
-                              <p className="text-lg font-bold text-primary mb-1">₹{product.price.toFixed(2)}</p>
+                              <p className="text-sm text-muted-foreground mb-1">Box: ₹{boxPrice.toFixed(2)} · PCS: ₹{pcsPrice.toFixed(2)}</p>
                               {product.description && (
                                 <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                               )}
@@ -426,7 +458,8 @@ const AddProduct = () => {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                      );
+                    })}
                   </>
                 )}
               </div>

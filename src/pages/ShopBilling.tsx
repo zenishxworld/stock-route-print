@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapRouteName } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
-import { seedDefaultProductsIfMissing } from "@/lib/defaultProducts";
+import { seedDefaultProductsIfMissing, UNIT_PRICE_MAP } from "@/lib/defaultProducts";
 import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X, MapPin, Phone } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
@@ -16,6 +16,8 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  pcs_price?: number;
+  box_price?: number;
 }
 
 interface SaleItem {
@@ -278,7 +280,7 @@ const ShopBilling = () => {
             productName: product.name,
             unit: 'box' as const,
             quantity: 0,
-            price: product.price,
+            price: (product.box_price ?? UNIT_PRICE_MAP[product.name.trim().toLowerCase()]?.box ?? product.price),
             total: 0,
             availableStock: availableBox,
           },
@@ -287,7 +289,7 @@ const ShopBilling = () => {
             productName: product.name,
             unit: 'pcs' as const,
             quantity: 0,
-            price: product.price,
+            price: (product.pcs_price ?? UNIT_PRICE_MAP[product.name.trim().toLowerCase()]?.pcs ?? product.price),
             total: 0,
             availableStock: availablePcs,
           }

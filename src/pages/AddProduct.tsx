@@ -24,6 +24,8 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  pcs_price?: number;
+  box_price?: number;
   description: string | null;
   status: string | null;
   created_at: string;

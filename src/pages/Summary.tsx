@@ -14,6 +14,8 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  pcs_price?: number;
+  box_price?: number;
 }
 
 interface RouteOption {

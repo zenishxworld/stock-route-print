@@ -13,7 +13,7 @@ import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
 import { listenForProductUpdates } from "@/lib/productSync";
 import { seedDefaultProductsIfMissing } from "@/lib/defaultProducts";
 import { ArrowLeft, Route, Package, Plus, Minus, Trash2, RefreshCw } from "lucide-react";
-import { isWithinAuthGracePeriod } from "@/lib/utils";
+import { isWithinAuthGracePeriod, nameMatchesQueryByWordPrefix } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -629,12 +629,12 @@ const StartRoute = () => {
                               setProductQuery(e.target.value);
                               setSelectedProduct(null);
                             }}
-                            placeholder="Type any part of product name"
+                            placeholder="Type word start to search"
                           />
                           {productQuery && (
                             <div className="max-h-40 overflow-auto border rounded-md">
                               {products
-                                .filter((p) => p.name.toLowerCase().includes(productQuery.toLowerCase()))
+                                .filter((p) => nameMatchesQueryByWordPrefix(p.name, productQuery))
                                 .slice(0, 8)
                                 .map((p) => (
                                   <button
@@ -649,7 +649,7 @@ const StartRoute = () => {
                                     {p.name} <span className="text-muted-foreground">₹{p.price.toFixed(2)}</span>
                                   </button>
                                 ))}
-                              {products.filter((p) => p.name.toLowerCase().includes(productQuery.toLowerCase())).length === 0 && (
+                              {products.filter(p => nameMatchesQueryByWordPrefix(p.name, productQuery)).length === 0 && (
                                 <div className="px-3 py-2 text-muted-foreground text-sm">No matches</div>
                               )}
                             </div>

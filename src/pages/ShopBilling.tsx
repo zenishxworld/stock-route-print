@@ -11,6 +11,7 @@ import { listenForProductUpdates } from "@/lib/productSync";
 import { seedDefaultProductsIfMissing, UNIT_PRICE_MAP } from "@/lib/defaultProducts";
 import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X, MapPin, Phone } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { nameMatchesQueryByWordPrefix } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -790,13 +791,13 @@ const ShopBilling = () => {
                           <Label className="text-sm">Search Product</Label>
                           <Input
                             autoFocus
-                            placeholder="Type to search by name"
+                            placeholder="Type word start to search"
                             value={productQuery}
                             onChange={(e) => {
                               const q = e.target.value;
                               setProductQuery(q);
                               const matchList = products
-                                .filter(p => p.name.toLowerCase().includes(q.toLowerCase()))
+                                .filter(p => nameMatchesQueryByWordPrefix(p.name, q))
                                 .filter(p => {
                                   const boxItem = saleItems.find(s => s.productId === p.id && s.unit === 'box');
                                   const pcsItem = saleItems.find(s => s.productId === p.id && s.unit === 'pcs');
@@ -813,7 +814,7 @@ const ShopBilling = () => {
                           />
                           <div className="max-h-40 overflow-y-auto border rounded-md">
                             {products
-                              .filter(p => p.name.toLowerCase().includes(productQuery.toLowerCase()))
+                              .filter(p => nameMatchesQueryByWordPrefix(p.name, productQuery))
                               .filter(p => {
                                 const boxItem = saleItems.find(s => s.productId === p.id && s.unit === 'box');
                                 const pcsItem = saleItems.find(s => s.productId === p.id && s.unit === 'pcs');
@@ -839,7 +840,7 @@ const ShopBilling = () => {
                                  );
                                })}
                             {productQuery && products
-                                .filter(p => p.name.toLowerCase().includes(productQuery.toLowerCase()))
+                                 .filter(p => nameMatchesQueryByWordPrefix(p.name, productQuery))
                                 .filter(p => {
                                   const boxItem = saleItems.find(s => s.productId === p.id && s.unit === 'box');
                                   const pcsItem = saleItems.find(s => s.productId === p.id && s.unit === 'pcs');

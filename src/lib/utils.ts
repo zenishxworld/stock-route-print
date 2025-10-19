@@ -18,3 +18,10 @@ export function isWithinAuthGracePeriod(): boolean {
     return false;
   }
 }
+
+export function nameMatchesQueryByWordPrefix(name: string, query: string): boolean {
+  const q = (query || "").trim().toLowerCase();
+  if (!q) return true;
+  const words = (name || "").toLowerCase().match(/[a-z0-9]+/gi) || [];
+  return words.some((w) => w.startsWith(q));
+}

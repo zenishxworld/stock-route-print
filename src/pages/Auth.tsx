@@ -23,8 +23,8 @@ const Auth = () => {
   // skip the login screen and go to dashboard.
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session || isWithinAuthGracePeriod()) {
-        navigate("/dashboard", { replace: true });
+      if (session) {
+        navigate('/dashboard');
       }
     });
   }, [navigate]);
@@ -192,8 +192,8 @@ const Auth = () => {
                   <Button
                     type="submit"
                     variant="default"
-                    size="lg"
-                    className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation"
+                    size="default"
+                    className="w-full h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation"
                     disabled={loading}
                   >
                     {loading ? "Signing In..." : "Sign In"}
@@ -249,8 +249,8 @@ const Auth = () => {
                   <Button
                     type="submit"
                     variant="success"
-                    size="lg"
-                    className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation"
+                    size="default"
+                    className="w-full h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation"
                     disabled={loading}
                   >
                     {loading ? "Creating Account..." : "Create Account"}

@@ -315,12 +315,12 @@ const AddProduct = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2 sm:gap-3 pt-1 sm:pt-2">
                 <Button
                   type="submit"
                   variant={editingId ? "default" : "success"}
-                  size="lg"
-                  className="flex-1 h-12 sm:h-11 text-base font-semibold touch-manipulation"
+                  size="default"
+                  className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation"
                   disabled={loading}
                 >
                   {editingId ? (
@@ -340,9 +340,9 @@ const AddProduct = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    size="lg"
+                    size="default"
                     onClick={resetForm}
-                    className="h-12 sm:h-11 px-6 touch-manipulation"
+                    className="h-10 sm:h-11 px-4 sm:px-6 touch-manipulation"
                   >
                     <X className="w-5 h-5" />
                   </Button>

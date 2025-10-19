@@ -405,14 +405,9 @@ const ShopBilling = () => {
       const step = 1;
       let next = q + delta * step;
       if (selectedProduct) {
-        const boxItem = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === 'box');
-        const pcsItem = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === 'pcs');
-        const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
-        const otherQty = unitMode === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
-        const maxAllowed = unitMode === 'box'
-          ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
-          : Math.max(0, totalRemainPCS - (otherQty * 24));
-        next = Math.max(0, Math.min(maxAllowed, next));
+        const si = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === unitMode);
+        const max = si ? si.availableStock : Infinity;
+        next = Math.max(0, Math.min(max, next));
       } else {
         next = Math.max(0, next);
       }
@@ -423,17 +418,10 @@ const ShopBilling = () => {
   const handleAddProductToSale = () => {
     if (!selectedProduct) return;
     const pid = selectedProduct.id;
-
-    const boxItem = saleItems.find((i) => i.productId === pid && i.unit === 'box');
-    const pcsItem = saleItems.find((i) => i.productId === pid && i.unit === 'pcs');
-    const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
-    const otherQty = unitMode === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
-    const maxAllowed = unitMode === 'box'
-      ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
-      : Math.max(0, totalRemainPCS - (otherQty * 24));
-
+    const target = saleItems.find((item) => item.productId === pid && item.unit === unitMode);
+    const maxAvail = target ? target.availableStock : 0;
     const desired = Math.max(0, tempQuantity);
-    const finalQty = Math.min(desired, maxAllowed);
+    const finalQty = Math.min(desired, maxAvail);
 
     setSaleItems((prev) =>
       prev.map((item) => {
@@ -1172,12 +1160,12 @@ const ShopBilling = () => {
                 </div>
 
                 {/* Generate Bill Button */}
-                <div className="sticky bottom-4 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-2 sm:p-0 -mx-2 sm:mx-0 rounded-lg sm:rounded-none">
+                <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
                   <Button
                     onClick={handleGenerateBill}
                     variant="success"
-                    size="lg"
-                    className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation shadow-lg sm:shadow-none"
+                    size="default"
+                    className="w-full h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation shadow sm:shadow-none"
                     disabled={!shopName.trim() || !isValidForBilling()}
                   >
                     <Check className="w-5 h-5 mr-2" />
@@ -1200,13 +1188,13 @@ const ShopBilling = () => {
               </CardHeader>
               
               <CardContent className="px-4 sm:px-6 space-y-4">
-                <div className="sticky bottom-4 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-2 sm:p-0 -mx-2 sm:mx-0 rounded-lg sm:rounded-none">
-                  <div className="flex flex-col sm:flex-row gap-3">
+                <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <Button
                       onClick={handlePrintBill}
                       variant="success"
-                      size="lg"
-                      className="flex-1 h-12 sm:h-11 text-base font-semibold touch-manipulation w-full sm:w-auto shadow-lg sm:shadow-none"
+                      size="default"
+                      className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
                       disabled={loading}
                     >
                       <Printer className="w-5 h-5 mr-2" />
@@ -1215,8 +1203,8 @@ const ShopBilling = () => {
                     <Button
                       onClick={handleBackToForm}
                       variant="outline"
-                      size="lg"
-                      className="h-12 sm:h-11 px-6 touch-manipulation w-full sm:w-auto shadow-lg sm:shadow-none"
+                      size="default"
+                      className="h-10 sm:h-11 px-4 sm:px-6 touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
                     >
                       Edit
                     </Button>

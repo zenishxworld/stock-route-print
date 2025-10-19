@@ -26,7 +26,7 @@ const Dashboard = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
-      if (!session && !isWithinAuthGracePeriod()) {
+      if (!session) {
         navigate('/auth');
       }
     });
@@ -34,7 +34,7 @@ const Dashboard = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (!session && !isWithinAuthGracePeriod()) {
+      if (!session) {
         navigate('/auth');
       }
     });

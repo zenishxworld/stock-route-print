@@ -34,7 +34,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return null;
   }
 
-  if (!hasSession && !isWithinAuthGracePeriod()) {
+  if (!hasSession) {
     return <Navigate to="/auth" replace />;
   }
 

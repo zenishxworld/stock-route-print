@@ -62,14 +62,14 @@ const StartRoute = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
-      if (!session && !isWithinAuthGracePeriod()) {
+      if (!session) {
         navigate('/auth');
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (!session && !isWithinAuthGracePeriod()) {
+      if (!session) {
         navigate('/auth');
       }
     });
@@ -789,8 +789,8 @@ const StartRoute = () => {
               <Button
                 type="submit"
                 variant="success"
-                size="lg"
-                className="w-full h-12 sm:h-11 text-base font-semibold touch-manipulation"
+                size="default"
+                className="w-full h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation"
                 disabled={loading || !selectedRoute || totalProducts === 0}
               >
                 {loading ? "Starting Route..." : "Start Route"}

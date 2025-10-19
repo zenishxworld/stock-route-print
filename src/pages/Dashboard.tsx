@@ -26,17 +26,11 @@ const Dashboard = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
-      if (!session) {
-        navigate('/auth');
-      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (!session) {
-        navigate('/auth');
-      }
     });
 
     return () => subscription.unsubscribe();
@@ -44,20 +38,11 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    // Clear grace period on explicit logout
     try { localStorage.removeItem('lastLoginAt'); } catch {}
     if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({
-        title: "Logged Out",
-        description: "You have been logged out successfully",
-      });
-      navigate('/auth');
+      toast({ title: "Logged Out", description: "You have been logged out successfully" });
     }
   };
 

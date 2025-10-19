@@ -297,7 +297,7 @@ const BillHistory = () => {
                             {(Array.isArray(selectedSale.products_sold) ? selectedSale.products_sold : (selectedSale.products_sold?.items || [])).map((item: any, index: number) => (
                               <tr key={index} className="border-b border-border">
                                 <td className="py-3 text-foreground print:text-[11px] print:py-1">{item.productName || item.name}</td>
-                                <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity}</td>
+                                <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity} {item.unit === 'box' ? 'Box' : item.unit === 'pcs' ? 'pcs' : ''}</td>
                                 <td className="py-3 text-right text-foreground print:text-[11px] print:py-1">₹{(item.price ?? 0).toFixed(2)}</td>
                                 <td className="py-3 text-right font-semibold text-foreground print:text-[11px] print:py-1">₹{(item.total ?? (item.quantity * (item.price ?? 0))).toFixed(2)}</td>
                               </tr>

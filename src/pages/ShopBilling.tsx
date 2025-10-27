@@ -1380,17 +1380,17 @@ const ShopBilling = () => {
       {/* Print Styles */}
       <style>{`
         @media print {
-          /* Set page size for 58mm thermal printer roll */
+          /* Set page size for 80mm roll printer */
           @page {
-            size: 58mm auto;
-            margin: 2mm 1mm;
+            size: 80mm auto;
+            margin: 3mm;
           }
 
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            background: white !important;
-            width: 58mm !important;
+            background-color: #fff !important;
+            width: 80mm !important;
           }
 
           * {
@@ -1408,8 +1408,8 @@ const ShopBilling = () => {
           #print-receipt-container {
             display: block !important;
             position: relative !important;
-            width: 58mm !important;
-            margin: 0 !important;
+            width: 72mm !important;
+            margin: 0 auto !important;
             padding: 0 !important;
             background: white !important;
           }
@@ -1418,17 +1418,17 @@ const ShopBilling = () => {
             display: none !important;
           }
 
-          /* Receipt styling for 58mm */
+          /* Receipt styling for receipt */
           .receipt-58mm {
             display: block !important;
-            width: 58mm !important;
-            max-width: 58mm !important;
-            margin: 0 !important;
+            width: 72mm !important;
+            max-width: 72mm !important;
+            margin: 0 auto !important;
             padding: 2mm !important;
             background: white !important;
             color: black !important;
-            font-family: 'Courier New', Courier, monospace !important;
-            font-size: 9px !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            font-size: 10px !important;
             line-height: 1.2 !important;
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
@@ -1455,7 +1455,7 @@ const ShopBilling = () => {
           .receipt-58mm th,
           .receipt-58mm td {
             padding: 1px 2px !important;
-            font-size: 8px !important;
+            font-size: 10px !important;
           }
 
           .receipt-58mm th {
@@ -1467,6 +1467,20 @@ const ShopBilling = () => {
           .receipt-58mm * {
             box-shadow: none !important;
             border-radius: 0 !important;
+          }
+          
+          .receipt {
+            width: 72mm !important;
+            margin: 0 auto !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            color: #000 !important;
+          }
+
+          .print-container {
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
           }
         }
       `}</style>

@@ -59,6 +59,25 @@ const ShopBilling = () => {
   const [tempQuantity, setTempQuantity] = useState<number>(0);
   const [itemUnitModes, setItemUnitModes] = useState<Record<string, 'pcs' | 'box'>>({});
 
+  // Defer cleanup until the print dialog completes to avoid blank PDFs/prints
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      // Reset form and refresh stock only after printing is done
+      setShopName("");
+      setShopAddress("");
+      setShopPhone("");
+      setShowBill(false);
+      // Refresh stock to get updated available quantities
+      if (currentRoute && currentDate) {
+        fetchProductsAndStock(currentRoute, currentDate);
+      }
+      setLoading(false);
+    };
+
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, [currentRoute, currentDate]);
+
   // Global shop details cache (address/phone) helpers
   const getDetailsKey = (_routeId?: string) => `shopDetails:global`;
   const saveShopDetailsToLocal = (routeId: string, name: string, address?: string, phone?: string) => {
@@ -527,22 +546,15 @@ const ShopBilling = () => {
       }
 
       // Print the bill
-      window.print();
+      // Give the browser a brief moment to apply print styles
+      setTimeout(() => {
+        window.print();
+      }, 50);
 
       toast({
         title: "Success!",
         description: "Bill printed and sale recorded successfully",
       });
-
-      // Reset form and refresh stock after successful print
-      setTimeout(() => {
-        setShopName("");
-        setShopAddress("");
-        setShopPhone("");
-        setShowBill(false);
-        // Refresh stock to get updated available quantities
-        fetchProductsAndStock(currentRoute, currentDate);
-      }, 500);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -550,7 +562,7 @@ const ShopBilling = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      // Loading state will be cleared in afterprint to avoid racing the print dialog
     }
   };
 
@@ -1333,7 +1345,7 @@ const ShopBilling = () => {
 
           .receipt {
             visibility: visible !important;
-            position: absolute !important;
+            position: fixed !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;

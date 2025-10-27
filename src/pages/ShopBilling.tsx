@@ -1320,59 +1320,91 @@ const ShopBilling = () => {
       </main>
 
       {/* Print Styles */}
-      <style>{`
-        @media print {
-          body {
-            margin: 0;
-            padding: 0;
-            background-color: #fff;
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
-          }
+      {/* Print Styles */}
+<style>{`
+  @media print {
+    /* Set page size specifically for thermal printer roll */
+    @page {
+      size: 72mm auto;
+      margin: 3mm;
+    }
 
-          /* Hide all root children to ensure only the receipt is printed (mobile-safe) */
-          #root > * {
-            display: none !important;
-          }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
 
-          /* Set page size specifically for thermal printer roll */
-          @page {
-            size: 72mm auto;
-            margin: 3mm;
-          }
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+    }
 
-          .receipt {
-            display: block !important;
-            visibility: visible !important;
-            position: static !important;
-            left: auto !important;
-            top: auto !important;
-            width: 100% !important;
-            max-width: 72mm !important;
-            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji" !important;
-            color: #000 !important;
-            background-color: #fff !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
-          }
+    /* Hide everything except the receipt */
+    body > *:not(.receipt),
+    body > * > *:not(.receipt) {
+      display: none !important;
+    }
 
-          /* Ensure receipt descendants are visible */
-          .receipt * { visibility: visible !important; }
+    /* Ensure screen-hidden items remain hidden on print */
+    .print\\:hidden {
+      display: none !important;
+    }
 
-          /* Typography and table compaction for thermal printing */
-          .receipt h1 { font-size: 1rem !important; }
-          .receipt p, .receipt div, .receipt span, .receipt th, .receipt td { font-size: 10px !important; line-height: 1.2 !important; }
-          .receipt table { width: 100% !important; }
-          .receipt th, .receipt td { padding: 2px 0 !important; }
+    /* Make receipt visible and properly sized */
+    .receipt {
+      display: block !important;
+      position: relative !important;
+      width: 72mm !important;
+      max-width: 72mm !important;
+      margin: 0 auto !important;
+      padding: 0 !important;
+      background: white !important;
+      color: black !important;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif !important;
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+    }
 
-          /* Ensure screen-hidden items remain hidden on print */
-          .print\\:hidden {
-            display: none !important;
-          }
-        }
-      `}</style>
+    .receipt * {
+      visibility: visible !important;
+      color: black !important;
+      background: transparent !important;
+    }
+
+    /* Typography and table compaction for thermal printing */
+    .receipt h1 { 
+      font-size: 1rem !important; 
+      margin: 0.5rem 0 !important;
+    }
+    
+    .receipt p, .receipt div, .receipt span, .receipt th, .receipt td { 
+      font-size: 10px !important; 
+      line-height: 1.3 !important; 
+    }
+    
+    .receipt table { 
+      width: 100% !important;
+      border-collapse: collapse !important;
+    }
+    
+    .receipt th, .receipt td { 
+      padding: 2px 4px !important;
+    }
+
+    /* Remove any shadows, borders that aren't needed */
+    .receipt .shadow-strong,
+    .receipt .border-0 {
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    /* Ensure no page breaks within the receipt */
+    .receipt > * {
+      page-break-inside: avoid !important;
+    }
+  }
+`}</style>
     </div>
   );
 };

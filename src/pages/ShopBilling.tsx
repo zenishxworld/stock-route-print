@@ -1319,27 +1319,46 @@ const ShopBilling = () => {
             -webkit-print-color-adjust: exact;
             color-adjust: exact;
           }
-          
-          /* Set page size for 80mm roll printer */
+
+          /* Hide everything by default using visibility, then reveal receipt */
+          body * {
+            visibility: hidden !important;
+          }
+
+          /* Set page size specifically for thermal printer roll */
           @page {
-            size: 80mm auto;
+            size: 72mm auto;
             margin: 3mm;
           }
-          
+
           .receipt {
-            width: 72mm !important;
-            margin: 0 auto !important;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 72mm !important;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji" !important;
             color: #000 !important;
-          }
-      
-          .print-container {
+            background-color: #fff !important;
             padding: 0 !important;
             margin: 0 !important;
             box-shadow: none !important;
             border: none !important;
           }
-      
+
+          /* Ensure receipt descendants are visible */
+          .receipt * {
+            visibility: visible !important;
+          }
+
+          /* Typography and table compaction for thermal printing */
+          .receipt h1 { font-size: 1rem !important; }
+          .receipt p, .receipt div, .receipt span, .receipt th, .receipt td { font-size: 10px !important; line-height: 1.2 !important; }
+          .receipt table { width: 100% !important; }
+          .receipt th, .receipt td { padding: 2px 0 !important; }
+
+          /* Ensure screen-hidden items remain hidden on print */
           .print\\:hidden {
             display: none !important;
           }

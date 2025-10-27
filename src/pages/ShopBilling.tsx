@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom"; // ADDED: Import createPortal
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { mapRouteName } from "@/lib/routeUtils";
-import { listenForProductUpdates } from "@/lib/productSync";
-import { seedDefaultProductsIfMissing, UNIT_PRICE_MAP } from "@/lib/defaultProducts";
+import { supabase } from "../integrations/supabase/client"; // FIXED: Corrected import path
+import { mapRouteName } from "../lib/routeUtils"; // FIXED: Corrected import path
+import { listenForProductUpdates } from "../lib/productSync"; // FIXED: Corrected import path
+import { seedDefaultProductsIfMissing, UNIT_PRICE_MAP } from "../lib/defaultProducts"; // FIXED: Corrected import path
 import { ArrowLeft, ShoppingCart, Plus, Minus, Printer, Store, Check, RefreshCw, X, MapPin, Phone } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { nameMatchesQueryByWordPrefix } from "@/lib/utils";
+import { nameMatchesQueryByWordPrefix } from "../lib/utils"; // FIXED: Corrected import path
 
 interface Product {
   id: string;
@@ -35,7 +36,7 @@ const ShopBilling = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
-  
+
   const [shopName, setShopName] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
@@ -108,13 +109,13 @@ const ShopBilling = () => {
       const detailsKey = getDetailsKey(routeId);
       const existingDetails = JSON.parse(localStorage.getItem(detailsKey) || '{}');
       const detailsMap: Record<string, { address?: string; phone?: string }> = existingDetails && typeof existingDetails === 'object' ? existingDetails : {};
-    
+
       // Fetch shop names from sales table for this route
       const { data, error } = await supabase
         .from("sales")
         .select("shop_name, products_sold")
         .eq("route_id", routeId);
-    
+
       if (!error && data) {
         data.forEach((row: any) => {
           const name = (row.shop_name || '').trim();
@@ -132,7 +133,7 @@ const ShopBilling = () => {
           }
         });
       }
-    
+
       const names = Array.from(namesSet).filter(n => !hiddenSet.has(n)).sort((a, b) => a.localeCompare(b));
       setShopSuggestions(names);
       localStorage.setItem(localKey, JSON.stringify(names));
@@ -177,7 +178,7 @@ const ShopBilling = () => {
     // Get current route and date from localStorage
     const route = localStorage.getItem('currentRoute');
     const date = localStorage.getItem('currentDate') || new Date().toISOString().split('T')[0];
-    
+
     if (!route) {
       toast({
         title: "No Active Route",
@@ -187,7 +188,7 @@ const ShopBilling = () => {
       navigate('/start-route');
       return;
     }
-    
+
     setCurrentRoute(route);
     setCurrentDate(date);
     fetchProductsAndStock(route, date);
@@ -470,7 +471,7 @@ const ShopBilling = () => {
 
   const isValidForBilling = () => {
     const soldItems = getSoldItems();
-    return soldItems.length > 0 && soldItems.every(item => 
+    return soldItems.length > 0 && soldItems.every(item =>
       item.quantity > 0 && item.price >= 1
     );
   };
@@ -633,7 +634,7 @@ const ShopBilling = () => {
                 </div>
               )}
             </CardHeader>
-            
+
             <CardContent className="px-4 sm:px-6">
               <div className="space-y-6 sm:space-y-8">
                 {/* Shop Name */}
@@ -993,7 +994,7 @@ const ShopBilling = () => {
                       const boxQty = boxItem?.quantity || 0;
                       const pcsQty = pcsItem?.quantity || 0;
                       const boxPrice = boxItem?.price ?? (product.box_price ?? product.price);
-                      const pcsPrice = pcsItem?.price ?? (product.pcs_price ?? ((product.box_price ?? product.price) / 24));
+                      const pcsPrice = pcsItem?.price ?? (product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / 24));
                       const availableStock = boxAvail + pcsAvail;
                       const lineTotal = (boxItem?.total || 0) + (pcsItem?.total || 0);
 
@@ -1012,7 +1013,7 @@ const ShopBilling = () => {
                                   </span>
                                 )}
                               </div>
-                              
+
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {/* Box Unit Row */}
                                 <div className="space-y-2">
@@ -1188,57 +1189,104 @@ const ShopBilling = () => {
           </Card>
         ) : (
           // Bill Preview & Print
-          <div className="space-y-4">
-            {/* Print Preview Card - Hidden when printing */}
-            <Card className="border-0 shadow-strong print:hidden">
-              <CardHeader className="text-center pb-4 px-4 sm:px-6">
-                <CardTitle className="text-xl sm:text-2xl font-bold text-success-green">Bill Generated!</CardTitle>
-                <CardDescription className="text-sm sm:text-base">
-                  Review and print the bill
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="px-4 sm:px-6 space-y-4">
-                <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    <Button
-                      onClick={handlePrintBill}
-                      variant="success"
-                      size="default"
-                      className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
-                      disabled={loading}
-                    >
-                      <Printer className="w-5 h-5 mr-2" />
-                      {loading ? "Printing..." : "Print Bill"}
-                    </Button>
-                    <Button
-                      onClick={handleBackToForm}
-                      variant="outline"
-                      size="default"
-                      className="h-10 sm:h-11 px-4 sm:px-6 touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
-                    >
-                      Edit
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <>
+            {/* On-screen preview card */}
+            <div className="space-y-4">
+              <Card className="border-0 shadow-strong print:hidden">
+                <CardHeader className="text-center pb-4 px-4 sm:px-6">
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-success-green">Bill Generated!</CardTitle>
+                  <CardDescription className="text-sm sm:text-base">
+                    Review and print the bill
+                  </CardDescription>
+                </CardHeader>
 
-            {/* Printable Bill - Must be at document root for printing */}
-            {showBill && (
+                <CardContent className="px-4 sm:px-6 space-y-4">
+                  <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      <Button
+                        onClick={handlePrintBill}
+                        variant="success"
+                        size="default"
+                        className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
+                        disabled={loading}
+                      >
+                        <Printer className="w-5 h-5 mr-2" />
+                        {loading ? "Printing..." : "Print Bill"}
+                      </Button>
+                      <Button
+                        onClick={handleBackToForm}
+                        variant="outline"
+                        size="default"
+                        className="h-10 sm:h-11 px-4 sm:px-6 touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Preview version of bill for screen (not for printing) */}
+              <Card className="border-0 shadow-strong print:hidden">
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <h2 className="text-xl font-bold">BHAVYA ENTERPRICE</h2>
+                      <p className="text-sm">Sales Invoice</p>
+                    </div>
+                    <div className="border-t pt-4">
+                      <p className="font-semibold">Shop: {shopName}</p>
+                      {shopAddress && <p className="text-sm text-muted-foreground">Address: {shopAddress}</p>}
+                      {shopPhone && <p className="text-sm text-muted-foreground">Phone: {shopPhone}</p>}
+                    </div>
+                    <div className="border-t pt-4">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-2">Item</th>
+                            <th className="text-center py-2">Qty</th>
+                            <th className="text-right py-2">Rate</th>
+                            <th className="text-right py-2">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getSoldItems().map((item, index) => (
+                            <tr key={`${item.productId}-${item.unit}-${index}`} className="border-b">
+                              <td className="py-2">{item.productName}</td>
+                              <td className="text-center py-2">{item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}</td>
+                              <td className="text-right py-2">₹{item.price.toFixed(2)}</td>
+                              <td className="text-right py-2 font-semibold">₹{item.total.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="border-t pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-bold">TOTAL:</span>
+                        <span className="text-2xl font-bold text-success-green">₹{totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Portal: Render print-only receipt at document body level */}
+            {createPortal(
               <div id="print-receipt-container" style={{ display: 'none' }}>
                 <div className="receipt-58mm">
                   {/* Bill Header */}
                   <div style={{ textAlign: 'center', marginBottom: '4px' }}>
                     <h1 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold' }}>BHAVYA ENTERPRICE</h1>
-                    <p className="invoice-title" style={{ margin: '0', fontSize: '10px', fontWeight: 600 }}>Sales Invoice</p>
+                    <p style={{ margin: '0', fontSize: '10px', fontWeight: '600' }}>Sales Invoice</p>
                     {/* Address */}
-                    <div className="company-info" style={{ marginTop: '2px', fontSize: '8px' }}>
+                    <div style={{ marginTop: '2px', fontSize: '8px' }}>
                       <p style={{ margin: '0', lineHeight: '1.1' }}>Near Bala petrol pump</p>
                       <p style={{ margin: '0', lineHeight: '1.1' }}>Jambusar Bharuch road</p>
                     </div>
                     {/* Phone and GSTIN */}
-                    <div className="company-info" style={{ marginTop: '2px', fontSize: '8px' }}>
+                    <div style={{ marginTop: '2px', fontSize: '8px' }}>
                       <p style={{ margin: '0', lineHeight: '1.1' }}>Phone: 8866756059</p>
                       <p style={{ margin: '0', lineHeight: '1.1' }}>GSTIN: 24EVVPS8220P1ZF</p>
                     </div>
@@ -1259,7 +1307,7 @@ const ShopBilling = () => {
 
                   {/* Shop Details */}
                   <div style={{ marginBottom: '4px', paddingBottom: '2px', borderTop: '1px dashed black', borderBottom: '1px dashed black', paddingTop: '2px' }}>
-                    <p style={{ fontSize: '9px', fontWeight: 600, margin: '0' }}>Shop: {shopName}</p>
+                    <p style={{ fontSize: '9px', fontWeight: '600', margin: '0' }}>Shop: {shopName}</p>
                     {shopAddress && (
                       <p style={{ fontSize: '8px', margin: '0' }}>Addr: {shopAddress}</p>
                     )}
@@ -1270,7 +1318,7 @@ const ShopBilling = () => {
 
                   {/* Products Table */}
                   <div style={{ marginBottom: '4px' }}>
-                    <table style={{ width: '100%', fontSize: '8px' }}>
+                    <table style={{ width: '100%', fontSize: '8px', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr style={{ borderBottom: '1px dashed black' }}>
                           <th style={{ textAlign: 'left', padding: '1px 0', fontSize: '8px' }}>Item</th>
@@ -1287,7 +1335,7 @@ const ShopBilling = () => {
                               {item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}
                             </td>
                             <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px' }}>₹{item.price.toFixed(2)}</td>
-                            <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px', fontWeight: 600 }}>
+                            <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px', fontWeight: '600' }}>
                               ₹{item.total.toFixed(2)}
                             </td>
                           </tr>
@@ -1309,154 +1357,113 @@ const ShopBilling = () => {
 
                   {/* Footer */}
                   <div style={{ marginTop: '4px', paddingTop: '2px', borderTop: '1px dashed black', textAlign: 'center' }}>
-                    <p style={{ fontSize: '9px', fontWeight: 600, margin: '0' }}>Thank you for your business!</p>
+                    <p style={{ fontSize: '9px', fontWeight: '600', margin: '0' }}>Thank you for your business!</p>
                     <p style={{ fontSize: '8px', margin: '0' }}>Have a great day!</p>
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
-          </div>
+          </>
         )}
       </main>
 
       {/* Print Styles */}
-      {/* Print Styles */}
-<style>{`
-  @media print {
-    /* Set page size for 58mm thermal printer roll */
-    @page {
-      size: 58mm auto;
-      margin: 2mm 1mm;
-    }
+      <style>{`
+        @media print {
+          /* Set page size for 58mm thermal printer roll */
+          @page {
+            size: 58mm auto;
+            margin: 2mm 1mm;
+          }
 
-    html, body {
-      margin: 0 !important;
-      padding: 0 !important;
-      background: white !important;
-      width: 58mm !important;
-    }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            width: 58mm !important;
+          }
 
-    * {
-      -webkit-print-color-adjust: exact !important;
-      color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
 
-    /* Hide all app content under #root except the print container */
-    #root > *:not(#print-receipt-container) {
-      display: none !important;
-    }
+          /* Hide all body children except our print container */
+          body > *:not(#print-receipt-container) {
+            display: none !important;
+          }
 
-    /* Show only print container under #root */
-    #root > #print-receipt-container {
-      display: block !important;
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 58mm !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      background: white !important;
-    }
+          /* Show the print container */
+          #print-receipt-container {
+            display: block !important;
+            position: relative !important;
+            width: 58mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
 
-    #print-receipt-container * {
-      visibility: visible !important;
-    }
+          .print\\:hidden {
+            display: none !important;
+          }
 
-    .print\\:hidden {
-      display: none !important;
-    }
+          /* Receipt styling for 58mm */
+          .receipt-58mm {
+            display: block !important;
+            width: 58mm !important;
+            max-width: 58mm !important;
+            margin: 0 !important;
+            padding: 2mm !important;
+            background: white !important;
+            color: black !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            font-size: 9px !important;
+            line-height: 1.2 !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+          }
 
-    /* Receipt styling for 58mm */
-    .receipt-58mm {
-      display: block !important;
-      width: 58mm !important;
-      max-width: 58mm !important;
-      margin: 0 !important;
-      padding: 2mm !important;
-      background: white !important;
-      color: black !important;
-      font-family: 'Courier New', Courier, monospace !important;
-      font-size: 9px !important;
-      line-height: 1.2 !important;
-      page-break-after: avoid !important;
-      page-break-inside: avoid !important;
-    }
+          .receipt-58mm * {
+            color: black !important;
+            border-color: black !important;
+          }
 
-    .receipt-58mm * {
-      color: black !important;
-      border-color: black !important;
-    }
+          .receipt-58mm h1 {
+            font-size: 14px !important;
+            font-weight: bold !important;
+            margin: 2px 0 !important;
+            text-align: center !important;
+          }
 
-    .receipt-58mm h1 { 
-      font-size: 14px !important; 
-      font-weight: bold !important;
-      margin: 2px 0 !important;
-      text-align: center !important;
-    }
-    
-    .receipt-58mm .invoice-title {
-      font-size: 10px !important;
-      margin: 1px 0 !important;
-    }
+          .receipt-58mm table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin: 2px 0 !important;
+          }
 
-    .receipt-58mm .company-info {
-      font-size: 8px !important;
-      line-height: 1.1 !important;
-      margin: 1px 0 !important;
-    }
-    
-    .receipt-58mm p, 
-    .receipt-58mm div, 
-    .receipt-58mm span { 
-      font-size: 9px !important; 
-      line-height: 1.2 !important; 
-      margin: 1px 0 !important;
-    }
-    
-    .receipt-58mm table { 
-      width: 100% !important;
-      border-collapse: collapse !important;
-      margin: 2px 0 !important;
-    }
-    
-    .receipt-58mm th, 
-    .receipt-58mm td { 
-      padding: 1px 2px !important;
-      font-size: 8px !important;
-    }
+          .receipt-58mm th,
+          .receipt-58mm td {
+            padding: 1px 2px !important;
+            font-size: 8px !important;
+          }
 
-    .receipt-58mm th {
-      font-weight: bold !important;
-      border-bottom: 1px dashed black !important;
-    }
+          .receipt-58mm th {
+            font-weight: bold !important;
+            border-bottom: 1px dashed black !important;
+          }
 
-    .receipt-58mm .border-dashed {
-      border-style: dashed !important;
-      border-color: black !important;
-    }
-
-    .receipt-58mm .total-row {
-      font-size: 11px !important;
-      font-weight: bold !important;
-      padding-top: 2px !important;
-    }
-
-    /* Remove all shadows and rounded corners */
-    .receipt-58mm * {
-      box-shadow: none !important;
-      border-radius: 0 !important;
-    }
-
-    /* Hide icons in print */
-    .receipt-58mm svg,
-    .receipt-58mm .lucide {
-      display: none !important;
-    }
-  }
-`}</style>
+          /* Remove all shadows and rounded corners */
+          .receipt-58mm * {
+            box-shadow: none !important;
+            border-radius: 0 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
 export default ShopBilling;
+

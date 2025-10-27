@@ -64,28 +64,34 @@ export type Database = {
       }
       products: {
         Row: {
+          box_price: number | null
           created_at: string
           description: string | null
           id: string
           name: string
+          pcs_price: number | null
           price: number
           status: string | null
           updated_at: string
         }
         Insert: {
+          box_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
           name: string
+          pcs_price?: number | null
           price: number
           status?: string | null
           updated_at?: string
         }
         Update: {
+          box_price?: number | null
           created_at?: string
           description?: string | null
           id?: string
           name?: string
+          pcs_price?: number | null
           price?: number
           status?: string | null
           updated_at?: string
@@ -241,7 +247,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_product: {
+        Args: {
+          p_id: string
+          p_name: string | null
+          p_price: number | null
+          p_pcs_price: number | null
+          p_box_price: number | null
+          p_description: string | null
+          p_status: string | null
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

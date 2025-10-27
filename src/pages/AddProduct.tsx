@@ -55,11 +55,12 @@ const AddProduct = () => {
       const { data, error } = await supabase
         .from("products")
         .select("*")
-        .order("created_at", { ascending: false });
-
+        .order("name");
+      
       if (error) throw error;
-      if (data) setProducts(data);
-    } catch (error) {
+      setProducts(data || []);
+    } catch (error: any) {
+      console.error("Error fetching products:", error);
       toast({
         title: "Error",
         description: "Failed to load products",
@@ -106,6 +107,7 @@ const AddProduct = () => {
 
       const pcsValue = parseFloat((boxValue / 24).toFixed(2));
 
+      // Explicitly define each field to ensure they're properly recognized
       const productData = {
         name: name.trim(),
         price: boxValue,
@@ -116,12 +118,21 @@ const AddProduct = () => {
       };
 
       if (editingId) {
-        const { error } = await supabase
-          .from("products")
-          .update(productData)
-          .eq("id", editingId);
+        // Use raw SQL via RPC to update the product
+        const { error } = await supabase.rpc('update_product', {
+          p_id: editingId,
+          p_name: productData.name,
+          p_price: productData.price,
+          p_pcs_price: productData.pcs_price,
+          p_box_price: productData.box_price,
+          p_description: productData.description,
+          p_status: productData.status
+        });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Update error:", error);
+          throw error;
+        }
 
         console.log('AddProduct: Notifying about product update', editingId, productData);
         notifyProductUpdate(editingId, productData);
@@ -131,13 +142,24 @@ const AddProduct = () => {
           description: `${name} has been updated successfully`,
         });
       } else {
+        // For new products, try the direct insert approach
         const { data, error } = await supabase
           .from("products")
-          .insert(productData)
+          .insert({
+            name: productData.name,
+            price: productData.price,
+            pcs_price: productData.pcs_price,
+            box_price: productData.box_price,
+            description: productData.description,
+            status: productData.status
+          })
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Insert error:", error);
+          throw error;
+        }
 
         console.log('AddProduct: Notifying about new product', data.id, productData);
         notifyProductUpdate(data.id, productData);
@@ -151,6 +173,7 @@ const AddProduct = () => {
       resetForm();
       fetchProducts();
     } catch (error: any) {
+      console.error("Full error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to save product",
@@ -166,23 +189,26 @@ const AddProduct = () => {
     
     setLoading(true);
     try {
+      const productToDelete = products.find(p => p.id === deleteId);
+      if (!productToDelete) throw new Error("Product not found");
+      
       const { error } = await supabase
         .from("products")
-        .delete()
+        .update({ status: "inactive" })
         .eq("id", deleteId);
-
+      
       if (error) throw error;
-
-      // Notify other pages about the deletion
+      
+      console.log('AddProduct: Notifying about product delete', deleteId);
       notifyProductDelete(deleteId);
-
+      
       toast({
         title: "Product Deleted",
-        description: "Product has been removed successfully",
+        description: `${productToDelete.name} has been removed`,
       });
-
-      fetchProducts();
+      
       setDeleteId(null);
+      fetchProducts();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -342,9 +368,11 @@ const AddProduct = () => {
                     variant="outline"
                     size="default"
                     onClick={resetForm}
-                    className="h-10 sm:h-11 px-4 sm:px-6 touch-manipulation"
+                    className="h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation"
+                    disabled={loading}
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-5 h-5 mr-2" />
+                    Cancel
                   </Button>
                 )}
               </div>
@@ -354,21 +382,17 @@ const AddProduct = () => {
 
         {/* Products List */}
         <Card className="border-0 shadow-strong">
-          <CardHeader className="pb-4 px-4 sm:px-6">
-            <CardTitle className="text-lg sm:text-xl font-bold">
-              All Products ({activeProducts.length})
-            </CardTitle>
-            <CardDescription className="text-sm">
-              Manage your product inventory
+          <CardHeader className="pb-4 sm:pb-6 px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl font-bold">Products</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
+              {activeProducts.length} active products
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="px-4 sm:px-6">
+          <CardContent className="px-4 sm:px-6 pb-6">
             {products.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground text-base">No products added yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Add your first product using the form above</p>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No products found</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -474,10 +498,10 @@ const AddProduct = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Product?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product from your inventory.
+              This will mark the product as inactive. It will no longer appear in product lists but will be preserved in historical data.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
             <AlertDialogCancel className="touch-manipulation">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}

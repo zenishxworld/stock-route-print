@@ -527,10 +527,8 @@ const ShopBilling = () => {
         truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
       };
 
-      // Trigger print immediately to preserve mobile user gesture
-      setTimeout(() => {
-        window.print();
-      }, 0);
+      // Trigger print synchronously within user gesture
+      window.print();
 
       // Save sale to database without blocking the print dialog
       const { error } = await supabase.from("sales").insert(saleData);

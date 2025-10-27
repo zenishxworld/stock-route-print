@@ -118,23 +118,30 @@ const AddProduct = () => {
       };
 
       if (editingId) {
-        // Use raw SQL via RPC to update the product
-        const { error } = await supabase.rpc('update_product', {
-          p_id: editingId,
-          p_name: productData.name,
-          p_price: productData.price,
-          p_pcs_price: productData.pcs_price,
-          p_box_price: productData.box_price,
-          p_description: productData.description,
-          p_status: productData.status
-        });
+        // Update existing product using standard Supabase update API
+        const { data, error } = await supabase
+          .from("products")
+          .update({
+            name: productData.name,
+            price: productData.price,
+            pcs_price: productData.pcs_price,
+            box_price: productData.box_price,
+            description: productData.description,
+            status: productData.status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editingId)
+          .select()
+          .single();
 
         if (error) {
           console.error("Update error:", error);
-          throw error;
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+          setLoading(false);
+          return;
         }
 
-        console.log('AddProduct: Notifying about product update', editingId, productData);
+        console.log('AddProduct: Notifying about product update', editingId, data);
         notifyProductUpdate(editingId, productData);
 
         toast({

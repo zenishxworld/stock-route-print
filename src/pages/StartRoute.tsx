@@ -663,7 +663,7 @@ const StartRoute = () => {
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                onClick={() => adjustTempQuantity(-1)}
+                                onClick={() => adjustTempQuantity(-5)}
                                 disabled={tempQuantity <= 0}
                               >
                                 <Minus className="w-4 h-4" />
@@ -682,7 +682,7 @@ const StartRoute = () => {
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                onClick={() => adjustTempQuantity(1)}
+                                onClick={() => adjustTempQuantity(5)}
                               >
                                 <Plus className="w-4 h-4" />
                               </Button>
@@ -726,7 +726,7 @@ const StartRoute = () => {
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => updateStock(item.productId, item.unit, -1)}
+                                    onClick={() => updateStock(item.productId, item.unit, -5)}
                                     disabled={item.quantity <= 0}
                                     title="Decrease"
                                   >
@@ -750,7 +750,7 @@ const StartRoute = () => {
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => updateStock(item.productId, item.unit, 1)}
+                                    onClick={() => updateStock(item.productId, item.unit, 5)}
                                     title="Increase"
                                   >
                                     <Plus className="w-4 h-4" />

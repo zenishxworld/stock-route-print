@@ -1224,72 +1224,72 @@ const ShopBilling = () => {
               </CardContent>
             </Card>
 
-            {/* Printable Bill */}
-            <div ref={printRef} className="receipt print:p-0 print:bg-white print:text-black print:font-mono print:w-[72mm] print:mx-auto">
-              <Card className="border-0 shadow-strong print:shadow-none print:border-0">
-                <CardContent className="p-6 sm:p-8 print:p-2">
+            {/* Printable Bill - Must be at document root for printing */}
+            {showBill && (
+              <div id="print-receipt-container" style={{ display: 'none' }}>
+                <div className="receipt-58mm">
                   {/* Bill Header */}
-                  <div className="text-center mb-6 print:mb-3">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-lg">BHAVYA ENTERPRICE</h1>
-                    <p className="text-sm font-semibold text-foreground print:text-[10px]">Sales Invoice</p>
-                    {/* Address (no spacing between lines) */}
-                    <div className="mt-1 text-xs text-foreground print:text-[10px]">
-                      <p className="leading-tight">Near Bala petrol pump</p>
-                      <p className="leading-tight">Jambusar Bharuch road</p>
+                  <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+                    <h1 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold' }}>BHAVYA ENTERPRICE</h1>
+                    <p className="invoice-title" style={{ margin: '0', fontSize: '10px', fontWeight: 600 }}>Sales Invoice</p>
+                    {/* Address */}
+                    <div className="company-info" style={{ marginTop: '2px', fontSize: '8px' }}>
+                      <p style={{ margin: '0', lineHeight: '1.1' }}>Near Bala petrol pump</p>
+                      <p style={{ margin: '0', lineHeight: '1.1' }}>Jambusar Bharuch road</p>
                     </div>
-                    {/* Space after address, then phone and GSTIN with no spacing between them */}
-                    <div className="mt-2 text-xs text-foreground print:text-[10px]">
-                      <p className="leading-tight">Phone no.: 8866756059</p>
-                      <p className="leading-tight">GSTIN: 24EVVPS8220P1ZF</p>
+                    {/* Phone and GSTIN */}
+                    <div className="company-info" style={{ marginTop: '2px', fontSize: '8px' }}>
+                      <p style={{ margin: '0', lineHeight: '1.1' }}>Phone: 8866756059</p>
+                      <p style={{ margin: '0', lineHeight: '1.1' }}>GSTIN: 24EVVPS8220P1ZF</p>
                     </div>
-                    {/* Date/Time in black */}
-                    <div className="mt-2 text-xs text-foreground print:text-[10px]">
-                      <p className="leading-tight">Date: {new Date().toLocaleDateString('en-IN', { 
-                        day: '2-digit', 
-                        month: 'short', 
+                    {/* Date/Time */}
+                    <div style={{ marginTop: '2px', fontSize: '8px' }}>
+                      <p style={{ margin: '0' }}>Date: {new Date().toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
                       })}</p>
                       {currentRouteName && (
-                        <p className="font-semibold text-primary">Route: {currentRouteName}</p>
+                        <p style={{ margin: '0', fontWeight: 'bold' }}>Route: {currentRouteName}</p>
                       )}
                     </div>
                   </div>
 
                   {/* Shop Details */}
-                  <div className="mb-6 print:mb-3 pb-3 border-t border-b border-dashed">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Store className="w-5 h-5 text-primary print:w-4 print:h-4" />
-                      <span className="font-semibold text-foreground print:text-[11px]">Shop:</span>
-                    </div>
-                    <p className="text-lg font-bold text-foreground pl-7 print:text-sm">{shopName}</p>
+                  <div style={{ marginBottom: '4px', paddingBottom: '2px', borderTop: '1px dashed black', borderBottom: '1px dashed black', paddingTop: '2px' }}>
+                    <p style={{ fontSize: '9px', fontWeight: 600, margin: '0' }}>Shop: {shopName}</p>
                     {shopAddress && (
-                      <p className="text-xs text-muted-foreground pl-7 mt-1 print:text-[10px]">Address/Village: {shopAddress}</p>
+                      <p style={{ fontSize: '8px', margin: '0' }}>Addr: {shopAddress}</p>
                     )}
                     {shopPhone && (
-                      <p className="text-xs text-muted-foreground pl-7 print:text-[10px]">Phone: {shopPhone}</p>
+                      <p style={{ fontSize: '8px', margin: '0' }}>Ph: {shopPhone}</p>
                     )}
                   </div>
 
                   {/* Products Table */}
-                  <div className="mb-6 print:mb-3">
-                    <table className="w-full">
+                  <div style={{ marginBottom: '4px' }}>
+                    <table style={{ width: '100%', fontSize: '8px' }}>
                       <thead>
-                        <tr className="border-b border-foreground border-dashed">
-                          <th className="text-left py-2 font-bold text-foreground print:text-[11px] print:py-1">Item</th>
-                          <th className="text-center py-2 font-bold text-foreground print:text-[11px] print:py-1">Qty</th>
-                          <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Rate</th>
-                          <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Amt</th>
+                        <tr style={{ borderBottom: '1px dashed black' }}>
+                          <th style={{ textAlign: 'left', padding: '1px 0', fontSize: '8px' }}>Item</th>
+                          <th style={{ textAlign: 'center', padding: '1px 0', fontSize: '8px' }}>Qty</th>
+                          <th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Rate</th>
+                          <th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Amt</th>
                         </tr>
                       </thead>
                       <tbody>
                         {getSoldItems().map((item, index) => (
-                          <tr key={`${item.productId}-${item.unit}-${index}`} className="border-b border-border">
-                            <td className="py-3 text-foreground print:text-[11px] print:py-1">{item.productName}</td>
-                            <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}</td>
-                            <td className="py-3 text-right text-foreground print:text-[11px] print:py-1">₹{item.price.toFixed(2)}</td>
-                            <td className="py-3 text-right font-semibold text-foreground print:text-[11px] print:py-1">₹{item.total.toFixed(2)}</td>
+                          <tr key={`${item.productId}-${item.unit}-${index}`}>
+                            <td style={{ padding: '1px 0', fontSize: '8px' }}>{item.productName}</td>
+                            <td style={{ padding: '1px 0', textAlign: 'center', fontSize: '8px' }}>
+                              {item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}
+                            </td>
+                            <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px' }}>₹{item.price.toFixed(2)}</td>
+                            <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px', fontWeight: 600 }}>
+                              ₹{item.total.toFixed(2)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1297,24 +1297,24 @@ const ShopBilling = () => {
                   </div>
 
                   {/* Total Section */}
-                  <div className="border-t border-foreground border-dashed pt-3 print:pt-2">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-lg font-bold text-foreground print:text-sm">TOTAL:</span>
-                      <span className="text-2xl font-bold text-primary print:text-base">₹{totalAmount.toFixed(2)}</span>
+                  <div style={{ borderTop: '1px dashed black', paddingTop: '2px', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 'bold' }}>TOTAL:</span>
+                      <span style={{ fontSize: '12px', fontWeight: 'bold' }}>₹{totalAmount.toFixed(2)}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground text-right print:text-[10px]">
+                    <div style={{ fontSize: '8px', textAlign: 'right' }}>
                       Items: {soldItemsCount}
                     </div>
                   </div>
 
                   {/* Footer */}
-                  <div className="mt-6 pt-3 border-t border-dashed text-center print:mt-4 print:pt-2">
-                    <p className="text-sm font-semibold text-foreground print:text-[10px]">Thank you for your business!</p>
-                    <p className="text-xs text-muted-foreground mt-1 print:text-[9px]">Have a great day!</p>
+                  <div style={{ marginTop: '4px', paddingTop: '2px', borderTop: '1px dashed black', textAlign: 'center' }}>
+                    <p style={{ fontSize: '9px', fontWeight: 600, margin: '0' }}>Thank you for your business!</p>
+                    <p style={{ fontSize: '8px', margin: '0' }}>Have a great day!</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -1323,85 +1323,135 @@ const ShopBilling = () => {
       {/* Print Styles */}
 <style>{`
   @media print {
-    /* Set page size specifically for thermal printer roll */
+    /* Set page size for 58mm thermal printer roll */
     @page {
-      size: 72mm auto;
-      margin: 3mm;
+      size: 58mm auto;
+      margin: 2mm 1mm;
+    }
+
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      width: 58mm !important;
     }
 
     * {
       -webkit-print-color-adjust: exact !important;
       color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
 
-    body {
+    /* Hide all app content under #root except the print container */
+    #root > *:not(#print-receipt-container) {
+      display: none !important;
+    }
+
+    /* Show only print container under #root */
+    #root > #print-receipt-container {
+      display: block !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 58mm !important;
       margin: 0 !important;
       padding: 0 !important;
       background: white !important;
     }
 
-    /* Hide everything except the receipt */
-    body > *:not(.receipt),
-    body > * > *:not(.receipt) {
-      display: none !important;
+    #print-receipt-container * {
+      visibility: visible !important;
     }
 
-    /* Ensure screen-hidden items remain hidden on print */
     .print\\:hidden {
       display: none !important;
     }
 
-    /* Make receipt visible and properly sized */
-    .receipt {
+    /* Receipt styling for 58mm */
+    .receipt-58mm {
       display: block !important;
-      position: relative !important;
-      width: 72mm !important;
-      max-width: 72mm !important;
-      margin: 0 auto !important;
-      padding: 0 !important;
+      width: 58mm !important;
+      max-width: 58mm !important;
+      margin: 0 !important;
+      padding: 2mm !important;
       background: white !important;
       color: black !important;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif !important;
+      font-family: 'Courier New', Courier, monospace !important;
+      font-size: 9px !important;
+      line-height: 1.2 !important;
       page-break-after: avoid !important;
       page-break-inside: avoid !important;
     }
 
-    .receipt * {
-      visibility: visible !important;
+    .receipt-58mm * {
       color: black !important;
-      background: transparent !important;
+      border-color: black !important;
     }
 
-    /* Typography and table compaction for thermal printing */
-    .receipt h1 { 
-      font-size: 1rem !important; 
-      margin: 0.5rem 0 !important;
+    .receipt-58mm h1 { 
+      font-size: 14px !important; 
+      font-weight: bold !important;
+      margin: 2px 0 !important;
+      text-align: center !important;
     }
     
-    .receipt p, .receipt div, .receipt span, .receipt th, .receipt td { 
-      font-size: 10px !important; 
-      line-height: 1.3 !important; 
+    .receipt-58mm .invoice-title {
+      font-size: 10px !important;
+      margin: 1px 0 !important;
+    }
+
+    .receipt-58mm .company-info {
+      font-size: 8px !important;
+      line-height: 1.1 !important;
+      margin: 1px 0 !important;
     }
     
-    .receipt table { 
+    .receipt-58mm p, 
+    .receipt-58mm div, 
+    .receipt-58mm span { 
+      font-size: 9px !important; 
+      line-height: 1.2 !important; 
+      margin: 1px 0 !important;
+    }
+    
+    .receipt-58mm table { 
       width: 100% !important;
       border-collapse: collapse !important;
+      margin: 2px 0 !important;
     }
     
-    .receipt th, .receipt td { 
-      padding: 2px 4px !important;
+    .receipt-58mm th, 
+    .receipt-58mm td { 
+      padding: 1px 2px !important;
+      font-size: 8px !important;
     }
 
-    /* Remove any shadows, borders that aren't needed */
-    .receipt .shadow-strong,
-    .receipt .border-0 {
+    .receipt-58mm th {
+      font-weight: bold !important;
+      border-bottom: 1px dashed black !important;
+    }
+
+    .receipt-58mm .border-dashed {
+      border-style: dashed !important;
+      border-color: black !important;
+    }
+
+    .receipt-58mm .total-row {
+      font-size: 11px !important;
+      font-weight: bold !important;
+      padding-top: 2px !important;
+    }
+
+    /* Remove all shadows and rounded corners */
+    .receipt-58mm * {
       box-shadow: none !important;
-      border: none !important;
+      border-radius: 0 !important;
     }
 
-    /* Ensure no page breaks within the receipt */
-    .receipt > * {
-      page-break-inside: avoid !important;
+    /* Hide icons in print */
+    .receipt-58mm svg,
+    .receipt-58mm .lucide {
+      display: none !important;
     }
   }
 `}</style>

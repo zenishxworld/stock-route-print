@@ -64,6 +64,38 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/a963a735-9f01-46fe-ab5b-bc78af62c5fb) and click on Share -> Publish.
 
+### Netlify SPA Redirects (React Router)
+- React SPA routes like `/auth` or `/dashboard` are handled client-side. On Netlify, direct hits to these routes return 404 unless all paths are rewritten to `index.html`.
+- Add `public/_redirects` with:
+  - `/* /index.html 200`
+- Ensure `netlify.toml` contains:
+
+```
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+- After `npm run build`, Vite copies `public/_redirects` to `dist/_redirects`. Netlify reads this file to serve `index.html` for all routes, preventing 404s on client-side paths.
+
+### Optional Fallback: HashRouter
+- If you prefer not to use Netlify redirects, switch to Hash-based routing.
+- Change in `src/App.tsx`:
+
+```tsx
+// import { BrowserRouter as Router } from "react-router-dom";
+import { HashRouter as Router } from "react-router-dom";
+
+// Then use <Router> instead of <BrowserRouter>
+```
+
+- URLs will look like: `https://mysite.netlify.app/#/auth` and won’t require `_redirects`.
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!

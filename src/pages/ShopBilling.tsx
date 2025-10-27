@@ -499,36 +499,40 @@ const ShopBilling = () => {
 
   const handlePrintBill = async () => {
     setLoading(true);
-    
+
     try {
-      // First save the sale to database
+      // Prepare sale data synchronously first
       const mockUserId = "00000000-0000-0000-0000-000000000000";
       const soldItems = getSoldItems();
-      
+
       const saleData = {
-         auth_user_id: mockUserId,
-         shop_name: shopName,
-         date: currentDate,
-         products_sold: {
-           items: soldItems.map(item => ({
-             productId: item.productId,
-             productName: item.productName,
-             unit: item.unit,
-             quantity: item.quantity,
-             price: item.price,
-             total: item.total,
-           })),
-           shop_address: shopAddress,
-           shop_phone: shopPhone,
-         },
-         total_amount: calculateTotal(),
-         route_id: currentRoute,
-         truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
-       };
+        auth_user_id: mockUserId,
+        shop_name: shopName,
+        date: currentDate,
+        products_sold: {
+          items: soldItems.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            unit: item.unit,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total,
+          })),
+          shop_address: shopAddress,
+          shop_phone: shopPhone,
+        },
+        total_amount: calculateTotal(),
+        route_id: currentRoute,
+        truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
+      };
 
-      // Save sale to database
+      // Trigger print immediately to preserve mobile user gesture
+      setTimeout(() => {
+        window.print();
+      }, 0);
+
+      // Save sale to database without blocking the print dialog
       const { error } = await supabase.from("sales").insert(saleData);
-
       if (error) {
         throw error;
       }
@@ -544,12 +548,6 @@ const ShopBilling = () => {
           (shopPhone || '').trim()
         );
       }
-
-      // Print the bill
-      // Give the browser a brief moment to apply print styles
-      setTimeout(() => {
-        window.print();
-      }, 50);
 
       toast({
         title: "Success!",
@@ -1332,9 +1330,9 @@ const ShopBilling = () => {
             color-adjust: exact;
           }
 
-          /* Hide everything by default using visibility, then reveal receipt */
-          body * {
-            visibility: hidden !important;
+          /* Hide all root children to ensure only the receipt is printed (mobile-safe) */
+          #root > * {
+            display: none !important;
           }
 
           /* Set page size specifically for thermal printer roll */
@@ -1344,10 +1342,11 @@ const ShopBilling = () => {
           }
 
           .receipt {
+            display: block !important;
             visibility: visible !important;
-            position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
             width: 100% !important;
             max-width: 72mm !important;
             font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji" !important;
@@ -1360,9 +1359,7 @@ const ShopBilling = () => {
           }
 
           /* Ensure receipt descendants are visible */
-          .receipt * {
-            visibility: visible !important;
-          }
+          .receipt * { visibility: visible !important; }
 
           /* Typography and table compaction for thermal printing */
           .receipt h1 { font-size: 1rem !important; }

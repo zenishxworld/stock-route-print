@@ -1214,6 +1214,15 @@ const ShopBilling = () => {
                         {loading ? "Printing..." : "Print Bill"}
                       </Button>
                       <Button
+                        onClick={() => window.print()}
+                        variant="outline"
+                        size="default"
+                        className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
+                      >
+                        <Printer className="w-5 h-5 mr-2" />
+                        Download Bill
+                      </Button>
+                      <Button
                         onClick={handleBackToForm}
                         variant="outline"
                         size="default"

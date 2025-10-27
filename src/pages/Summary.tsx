@@ -26,10 +26,14 @@ interface RouteOption {
 interface SummaryItem {
   productId: string;
   productName: string;
-  startQty: number;
-  soldQty: number;
-  remainingQty: number;
-  price: number;
+  startBox: number;
+  startPcs: number;
+  soldBox: number;
+  soldPcs: number;
+  remainingBox: number;
+  remainingPcs: number;
+  boxPrice: number;
+  pcsPrice: number;
   totalRevenue: number;
 }
 
@@ -141,12 +145,12 @@ const Summary = () => {
 
       if (salesError && salesError.code !== 'PGRST116') throw salesError;
 
-      // Calculate summary
+      // Calculate summary with separate box and pcs units
       const summary: SummaryItem[] = [];
       
       if (products) {
         products.forEach(product => {
-          // Compute initial stock in pcs (box*24 + pcs)
+          // Initial stock per unit
           let startBox = 0;
           let startPcs = 0;
           if (dailyStock && dailyStock.stock && Array.isArray(dailyStock.stock)) {
@@ -156,12 +160,12 @@ const Summary = () => {
             startBox = boxStock?.quantity || 0;
             startPcs = pcsStock?.quantity || 0;
           }
-          const startQty = (startBox * 24) + startPcs;
 
-          // Calculate total sold quantity in pcs and revenue from line items
-          let soldQty = 0;
+          // Sold per unit and revenue
+          let soldBox = 0;
+          let soldPcs = 0;
           let totalRevenue = 0;
-          const boxPrice = product.price; // box_price is not in the Product type, fallback to price
+          const boxPrice = (product as any).box_price ?? product.price;
           const pcsPrice = (product as any).pcs_price ?? (((product as any).box_price ?? product.price) / 24);
 
           if (sales) {
@@ -171,8 +175,7 @@ const Summary = () => {
                 if (p.productId === product.id) {
                   const u = p.unit || 'pcs';
                   const q = p.quantity || 0;
-                  // Sum sold pcs
-                  soldQty += u === 'box' ? (q * 24) : q;
+                  if (u === 'box') soldBox += q; else soldPcs += q;
                   // Sum revenue using saved total or fallback to price
                   const lineTotal = typeof p.total === 'number'
                     ? p.total
@@ -183,15 +186,22 @@ const Summary = () => {
             });
           }
 
+          const remainingBox = Math.max(0, startBox - soldBox);
+          const remainingPcs = Math.max(0, startPcs - soldPcs);
+
           // Only include products that were loaded or sold
-          if (startQty > 0 || soldQty > 0) {
+          if ((startBox + startPcs) > 0 || (soldBox + soldPcs) > 0) {
             summary.push({
               productId: product.id,
               productName: product.name,
-              startQty,
-              soldQty,
-              remainingQty: Math.max(0, startQty - soldQty),
-              price: boxPrice,
+              startBox,
+              startPcs,
+              soldBox,
+              soldPcs,
+              remainingBox,
+              remainingPcs,
+              boxPrice,
+              pcsPrice,
               totalRevenue,
             });
           }
@@ -227,17 +237,25 @@ const Summary = () => {
     return summaryData.reduce((sum, item) => sum + item.totalRevenue, 0);
   };
 
-  const calculateTotalSold = () => {
-    return summaryData.reduce((sum, item) => sum + item.soldQty, 0);
-  };
-
-  const calculateTotalRemaining = () => {
-    return summaryData.reduce((sum, item) => sum + item.remainingQty, 0);
+  const getTotals = () => {
+    const totals = summaryData.reduce(
+      (acc, item) => {
+        acc.startBox += item.startBox;
+        acc.startPcs += item.startPcs;
+        acc.soldBox += item.soldBox;
+        acc.soldPcs += item.soldPcs;
+        acc.remainingBox += item.remainingBox;
+        acc.remainingPcs += item.remainingPcs;
+        return acc;
+      },
+      { startBox: 0, startPcs: 0, soldBox: 0, soldPcs: 0, remainingBox: 0, remainingPcs: 0 }
+    );
+    return totals;
   };
 
   const calculateTotalStock = () => {
-    // Total stock = items sold + items remaining
-    return calculateTotalSold() + calculateTotalRemaining();
+    const t = getTotals();
+    return { box: t.startBox, pcs: t.startPcs };
   };
 
   const getRouteName = () => {
@@ -378,49 +396,54 @@ const Summary = () => {
                 </div>
 
                 {/* Stats Cards - Hidden on print */}
-                <div className="grid grid-cols-4 gap-3 mb-6 print:hidden">
-                  <Card className="border border-primary/20 bg-primary-light/10">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                      <Package className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
-                      <p className="text-lg sm:text-xl font-bold text-primary">{calculateTotalStock()}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Total Stock</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border border-primary/20 bg-primary-light/10">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                      <Package className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
-                      <p className="text-lg sm:text-xl font-bold text-primary">{calculateTotalSold()}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Sold</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="border border-warning/20 bg-warning-light/10">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                      <Package className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 text-warning" />
-                      <p className="text-lg sm:text-xl font-bold text-warning">{calculateTotalRemaining()}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border border-success-green/20 bg-success-green-light/10">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 text-success-green" />
-                      <p className="text-lg sm:text-xl font-bold text-success-green">₹{calculateGrandTotal().toFixed(2)}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Revenue</p>
-                    </CardContent>
-                  </Card>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6 print:hidden">
+                  {(() => {
+                    const t = getTotals();
+                    return (
+                      <>
+                        <Card className="border border-primary/20 bg-primary-light/10">
+                          <CardContent className="p-3 sm:p-4 text-center">
+                            <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
+                            <p className="text-xs sm:text-sm text-muted-foreground">Total Stock</p>
+                            <p className="text-lg sm:text-xl font-bold text-primary">{t.startBox} Box | {t.startPcs} pcs</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="border border-primary/20 bg-primary-light/10">
+                          <CardContent className="p-3 sm:p-4 text-center">
+                            <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
+                            <p className="text-xs sm:text-sm text-muted-foreground">Sold</p>
+                            <p className="text-lg sm:text-xl font-bold text-primary">{t.soldBox} Box | {t.soldPcs} pcs</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="border border-warning/20 bg-warning-light/10">
+                          <CardContent className="p-3 sm:p-4 text-center">
+                            <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-warning" />
+                            <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
+                            <p className="text-lg sm:text-xl font-bold text-warning">{t.remainingBox} Box | {t.remainingPcs} pcs</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="border border-success-green/20 bg-success-green-light/10">
+                          <CardContent className="p-3 sm:p-4 text-center">
+                            <DollarSign className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-success-green" />
+                            <p className="text-xs sm:text-sm text-muted-foreground">Revenue</p>
+                            <p className="text-lg sm:text-xl font-bold text-success-green truncate max-w-full overflow-hidden">₹{calculateGrandTotal().toFixed(2)}</p>
+                          </CardContent>
+                        </Card>
+                      </>
+                    );
+                  })()}
                 </div>
 
-                {/* Summary Table */}
-                <div className="mb-6 print:mb-4 overflow-x-auto">
+                {/* Summary Table (Desktop & Print) */}
+                <div className="mb-6 print:mb-4 overflow-x-auto hidden sm:block print:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b-2 border-foreground">
                         <th className="text-left py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Product</th>
-                        <th className="text-center py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Start</th>
-                        <th className="text-center py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Sold</th>
-                        <th className="text-center py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Left</th>
-                        <th className="text-right py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Price</th>
+                        <th className="text-center py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Start (Box | pcs)</th>
+                        <th className="text-center py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Sold (Box | pcs)</th>
+                        <th className="text-center py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Left (Box | pcs)</th>
+                        <th className="text-right py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Prices</th>
                         <th className="text-right py-2 sm:py-3 font-bold text-foreground print:text-xs print:py-1">Revenue</th>
                       </tr>
                     </thead>
@@ -428,10 +451,10 @@ const Summary = () => {
                       {summaryData.map((item) => (
                         <tr key={item.productId} className="border-b border-border">
                           <td className="py-3 text-foreground font-medium print:text-xs print:py-2">{item.productName}</td>
-                          <td className="py-3 text-center text-muted-foreground print:text-xs print:py-2">{item.startQty}</td>
-                          <td className="py-3 text-center text-primary font-semibold print:text-xs print:py-2">{item.soldQty}</td>
-                          <td className="py-3 text-center text-warning font-semibold print:text-xs print:py-2">{item.remainingQty}</td>
-                          <td className="py-3 text-right text-muted-foreground print:text-xs print:py-2">₹{item.price.toFixed(2)}</td>
+                          <td className="py-3 text-center text-muted-foreground print:text-xs print:py-2">{item.startBox} Box | {item.startPcs} pcs</td>
+                          <td className="py-3 text-center text-primary font-semibold print:text-xs print:py-2">{item.soldBox} Box | {item.soldPcs} pcs</td>
+                          <td className="py-3 text-center text-warning font-semibold print:text-xs print:py-2">{item.remainingBox} Box | {item.remainingPcs} pcs</td>
+                          <td className="py-3 text-right text-muted-foreground print:text-xs print:py-2">Box ₹{item.boxPrice.toFixed(2)} | pcs ₹{item.pcsPrice.toFixed(2)}</td>
                           <td className="py-3 text-right font-semibold text-success-green print:text-xs print:py-2">₹{item.totalRevenue.toFixed(2)}</td>
                         </tr>
                       ))}
@@ -439,19 +462,53 @@ const Summary = () => {
                   </table>
                 </div>
 
+                {/* Summary List (Mobile) */}
+                <div className="sm:hidden mb-6 space-y-2 print:hidden">
+                  {summaryData.map((item) => (
+                    <div key={item.productId} className="rounded-md border p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground truncate max-w-[60%]">{item.productName}</span>
+                        <span className="text-sm font-bold text-success-green">₹{item.totalRevenue.toFixed(2)}</span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Start:</span>
+                          <span className="ml-1 font-semibold">{item.startBox} Box | {item.startPcs} pcs</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Sold:</span>
+                          <span className="ml-1 font-semibold text-primary">{item.soldBox} Box | {item.soldPcs} pcs</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Left:</span>
+                          <span className="ml-1 font-semibold text-warning">{item.remainingBox} Box | {item.remainingPcs} pcs</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Price:</span>
+                          <span className="ml-1 font-medium text-muted-foreground">Box ₹{item.boxPrice.toFixed(2)} | pcs ₹{item.pcsPrice.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Totals Section */}
                 <div className="border-t-2 border-foreground pt-4 print:pt-3 space-y-2">
                   <div className="flex justify-between items-center text-sm sm:text-base print:text-xs">
                     <span className="font-semibold text-muted-foreground">Total Items Sold:</span>
-                    <span className="font-bold text-primary">{calculateTotalSold()} units</span>
+                    {(() => { const t = getTotals(); return (
+                      <span className="font-bold text-primary">{t.soldBox} Box | {t.soldPcs} pcs</span>
+                    ); })()}
                   </div>
                   <div className="flex justify-between items-center text-sm sm:text-base print:text-xs">
                     <span className="font-semibold text-muted-foreground">Total Remaining:</span>
-                    <span className="font-bold text-warning">{calculateTotalRemaining()} units</span>
+                    {(() => { const t = getTotals(); return (
+                      <span className="font-bold text-warning">{t.remainingBox} Box | {t.remainingPcs} pcs</span>
+                    ); })()}
                   </div>
-                  <div className="flex justify-between items-center pt-2 border-t border-dashed">
+                  <div className="flex justify-between items-center pt-2 border-t border-dashed flex-wrap gap-2 sm:flex-nowrap min-w-0">
                     <span className="text-lg sm:text-xl font-bold text-foreground print:text-base">GRAND TOTAL:</span>
-                    <span className="text-2xl sm:text-3xl font-bold text-success-green print:text-xl">₹{calculateGrandTotal().toFixed(2)}</span>
+                    <span className="text-2xl sm:text-3xl font-bold text-success-green print:text-xl truncate max-w-[60%] sm:max-w-none overflow-hidden text-right">₹{calculateGrandTotal().toFixed(2)}</span>
                   </div>
                 </div>
 

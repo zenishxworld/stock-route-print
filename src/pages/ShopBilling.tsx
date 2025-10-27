@@ -259,7 +259,7 @@ const ShopBilling = () => {
 
       if (salesError && salesError.code !== 'PGRST116') throw salesError;
 
-      // Calculate remaining stock per unit for each product
+      // Calculate remaining stock per unit for each product (box and pcs as independent items)
       const saleItemsWithStock = productsData.flatMap(product => {
         // Get initial stock per unit
         let initialBox = 0;
@@ -272,8 +272,9 @@ const ShopBilling = () => {
           initialPcs = pcsStock?.quantity || 0;
         }
 
-        // Calculate total sold in PCS across units
-        let soldTotalPCS = 0;
+        // Calculate sold per unit independently (do not convert between units)
+        let soldBoxes = 0;
+        let soldPcs = 0;
         if (salesData) {
           salesData.forEach(sale => {
             if (sale.products_sold) {
@@ -284,17 +285,16 @@ const ShopBilling = () => {
                 if (p.productId === product.id) {
                   const u = (p.unit || 'pcs');
                   const q = p.quantity || 0;
-                  soldTotalPCS += u === 'box' ? (q * 24) : q;
+                  if (u === 'box') soldBoxes += q;
+                  else if (u === 'pcs') soldPcs += q;
                 }
               });
             }
           });
         }
 
-        const initialTotalPCS = (initialBox * 24) + initialPcs;
-        const remainingTotalPCS = Math.max(0, initialTotalPCS - soldTotalPCS);
-        const availableBox = Math.floor(remainingTotalPCS / 24);
-        const availablePcs = remainingTotalPCS % 24;
+        const availableBox = Math.max(0, initialBox - soldBoxes);
+        const availablePcs = Math.max(0, initialPcs - soldPcs);
 
         return [
           {
@@ -339,13 +339,8 @@ const ShopBilling = () => {
 
   const updateQuantity = (productId: string, unit: 'box' | 'pcs', change: number) => {
     setSaleItems(prev => {
-      const boxItem = prev.find(i => i.productId === productId && i.unit === 'box');
-      const pcsItem = prev.find(i => i.productId === productId && i.unit === 'pcs');
-      const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
-      const otherQty = unit === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
-      const maxAllowed = unit === 'box'
-        ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
-        : Math.max(0, totalRemainPCS - (otherQty * 24));
+      const targetItem = prev.find(i => i.productId === productId && i.unit === unit);
+      const maxAllowed = targetItem?.availableStock ?? 0;
 
       return prev.map(item => {
         if (item.productId === productId && item.unit === unit) {
@@ -364,13 +359,8 @@ const ShopBilling = () => {
 
   const setQuantityDirect = (productId: string, unit: 'box' | 'pcs', quantity: number) => {
     setSaleItems(prev => {
-      const boxItem = prev.find(i => i.productId === productId && i.unit === 'box');
-      const pcsItem = prev.find(i => i.productId === productId && i.unit === 'pcs');
-      const totalRemainPCS = (boxItem?.availableStock || 0) * 24 + (pcsItem?.availableStock || 0);
-      const otherQty = unit === 'box' ? (pcsItem?.quantity || 0) : (boxItem?.quantity || 0);
-      const maxAllowed = unit === 'box'
-        ? Math.max(0, Math.floor((totalRemainPCS - otherQty) / 24))
-        : Math.max(0, totalRemainPCS - (otherQty * 24));
+      const targetItem = prev.find(i => i.productId === productId && i.unit === unit);
+      const maxAllowed = targetItem?.availableStock ?? 0;
 
       return prev.map(item => {
         if (item.productId === productId && item.unit === unit) {
@@ -469,6 +459,8 @@ const ShopBilling = () => {
     return saleItems.filter(item => item.quantity > 0);
   };
 
+  const isValidPhone = (p: string) => /^\d{10}$/.test(p);
+
   const isValidForBilling = () => {
     const soldItems = getSoldItems();
     return soldItems.length > 0 && soldItems.every(item =>
@@ -481,6 +473,15 @@ const ShopBilling = () => {
       toast({
         title: "Error",
         description: "Please enter shop name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isValidPhone(shopPhone)) {
+      toast({
+        title: "Error",
+        description: "Enter a valid 10-digit mobile number",
         variant: "destructive",
       });
       return;
@@ -760,15 +761,20 @@ const ShopBilling = () => {
                   </Label>
                   <Input
                     type="tel"
-                    inputMode="tel"
-                    placeholder="Enter phone number"
+                    inputMode="numeric"
+                    placeholder="Enter 10-digit mobile number"
                     value={shopPhone}
                     onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9+\-\s]/g, "");
-                      setShopPhone(val);
+                      const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setShopPhone(digitsOnly);
                     }}
+                    pattern="[0-9]{10}"
+                    maxLength={10}
                     className="h-11 sm:h-10 text-base"
                   />
+                  {shopPhone && !isValidPhone(shopPhone) && (
+                    <p className="text-xs text-destructive">Enter 10-digit mobile number</p>
+                  )}
                 </div>
 
                 {/* Products Selection */}
@@ -890,17 +896,18 @@ const ShopBilling = () => {
                                 <Minus className="w-4 h-4" />
                               </Button>
                               <Input
-                                type="number"
-                                value={tempQuantity}
+                                type="text"
+                                value={String(tempQuantity)}
                                 onChange={(e) => {
-                                  const raw = parseInt(e.target.value) || 0;
+                                  const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
+                                  const raw = parseInt(sanitized) || 0;
                                   const si = saleItems.find(i => i.productId === selectedProduct.id && i.unit === unitMode);
                                   const max = si?.availableStock ?? 0;
                                   setTempQuantity(Math.max(0, Math.min(max, raw)));
                                 }}
                                 className="w-20 text-center h-9"
                                 inputMode="numeric"
-                                min="0"
+                                pattern="[0-9]*"
                               />
                               <Button type="button" variant="outline" size="icon" onClick={() => adjustTempQuantity(1)} className="h-9 w-9">
                                 <Plus className="w-4 h-4" />
@@ -939,15 +946,16 @@ const ShopBilling = () => {
                                   <Minus className="w-4 h-4" />
                                 </Button>
                                 <Input
-                                  type="number"
-                                  value={i.quantity}
+                                  type="text"
+                                  value={String(i.quantity)}
                                   onChange={(e) => {
-                                    const val = Math.max(0, parseInt(e.target.value) || 0);
+                                    const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
+                                    const val = Math.max(0, parseInt(sanitized) || 0);
                                     setQuantityDirect(i.productId, i.unit, val);
                                   }}
                                   className="w-16 text-center h-8"
-                                  min="0"
-                                  max={i.availableStock}
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
                                 />
                                 <Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(i.productId, i.unit, 1)} className="h-8 w-8">
                                   <Plus className="w-4 h-4" />
@@ -1049,16 +1057,16 @@ const ShopBilling = () => {
                                         <Minus className="w-4 h-4" />
                                       </Button>
                                       <Input
-                                        type="number"
-                                        value={boxQty}
+                                        type="text"
+                                        value={String(boxQty)}
                                         onChange={(e) => {
-                                          const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
+                                          const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
+                                          const newQuantity = Math.max(0, parseInt(sanitized) || 0);
                                           setQuantityDirect(product.id, 'box', newQuantity);
                                         }}
-                                        max={boxAvail}
                                         className="w-16 text-center text-sm h-9"
-                                        min="0"
                                         inputMode="numeric"
+                                        pattern="[0-9]*"
                                         disabled={boxAvail === 0}
                                       />
                                       <Button
@@ -1111,16 +1119,16 @@ const ShopBilling = () => {
                                         <Minus className="w-4 h-4" />
                                       </Button>
                                       <Input
-                                        type="number"
-                                        value={pcsQty}
+                                        type="text"
+                                        value={String(pcsQty)}
                                         onChange={(e) => {
-                                          const newQuantity = Math.max(0, parseInt(e.target.value) || 0);
+                                          const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
+                                          const newQuantity = Math.max(0, parseInt(sanitized) || 0);
                                           setQuantityDirect(product.id, 'pcs', newQuantity);
                                         }}
-                                        max={pcsAvail}
                                         className="w-16 text-center text-sm h-9"
-                                        min="0"
                                         inputMode="numeric"
+                                        pattern="[0-9]*"
                                         disabled={pcsAvail === 0}
                                       />
                                       <Button
@@ -1176,7 +1184,7 @@ const ShopBilling = () => {
                     variant="success"
                     size="default"
                     className="w-full h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation shadow sm:shadow-none"
-                    disabled={!shopName.trim() || !isValidForBilling()}
+                    disabled={!shopName.trim() || !isValidForBilling() || !isValidPhone(shopPhone)}
                   >
                     <Check className="w-5 h-5 mr-2" />
                     Generate Bill

@@ -669,12 +669,16 @@ const StartRoute = () => {
                                 <Minus className="w-4 h-4" />
                               </Button>
                               <Input
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 className="w-20 text-center"
-                                value={tempQuantity}
-                                min={0}
+                                value={String(tempQuantity)}
                                 onChange={(e) => {
-                                  const v = Math.max(0, parseInt(e.target.value || '0'));
+                                  const raw = (e.target.value || '').replace(/\D+/g, '');
+                                  // Strip leading zeros but keep single zero
+                                  const sanitized = raw.replace(/^0+(?=\d)/, '');
+                                  const v = Math.max(0, parseInt(sanitized || '0', 10));
                                   setTempQuantity(v);
                                 }}
                               />

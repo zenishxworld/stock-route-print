@@ -388,11 +388,11 @@ const ShopBilling = () => {
 
   // *** FIXED handlePrintBill function ***
   const handlePrintBill = async () => {
+    // Make printing synchronous with the user click to fix mobile blank preview
     setLoading(true);
 
     const soldItems = getSoldItems();
     const saleData = {
-      // Use placeholder auth_user_id since auth is bypassed by grace period
       auth_user_id: "00000000-0000-0000-0000-000000000000",
       shop_name: shopName,
       date: currentDate,
@@ -410,34 +410,26 @@ const ShopBilling = () => {
       },
       total_amount: calculateTotal(),
       route_id: currentRoute,
-      // Use placeholder truck_id as it's not currently selected/tracked
       truck_id: "00000000-0000-0000-0000-000000000000",
     };
 
+    // 1) Trigger print immediately (synchronously) to preserve mobile gesture context
+    window.print();
+
+    // 2) After print dialog opens, persist the sale
     try {
-      // 1. Save sale data first
       const { error } = await supabase.from("sales").insert(saleData);
       if (error) throw error;
 
-      // 2. Save shop details locally
       if (currentRoute && shopName.trim()) {
         saveShopNameToLocal(currentRoute, shopName.trim());
         saveShopDetailsToLocal(currentRoute, shopName.trim(), shopAddress.trim(), shopPhone.trim());
       }
 
-      // 3. Trigger print *after* successful save
-      // *** IMPORTANT: No setTimeout needed here if the portal is always rendered ***
-       window.print();
-       // `afterprint` listener handles state reset and setLoading(false)
-
-      toast({
-        title: "Success!",
-        description: "Sale recorded. Opening print dialog...",
-      });
-
+      toast({ title: "Saved", description: "Bill saved successfully." });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to save sale", variant: "destructive" });
-      setLoading(false); // Ensure loading stops on error
+      toast({ title: "Error", description: error.message || "Failed to save bill", variant: "destructive" });
+      setLoading(false);
     }
   };
 
@@ -712,7 +704,6 @@ const ShopBilling = () => {
                   <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <Button onClick={handlePrintBill} variant="success" size="default" className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none" disabled={loading}><Printer className="w-5 h-5 mr-2" />{loading ? "Printing..." : "Print Bill"}</Button>
-                      <Button onClick={() => window.print()} variant="outline" size="default" className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none"><Printer className="w-5 h-5 mr-2" /> Download Bill</Button>
                       <Button onClick={handleBackToForm} variant="outline" size="default" className="h-10 sm:h-11 px-4 sm:px-6 touch-manipulation w-full sm:w-auto shadow sm:shadow-none">Edit</Button>
                     </div>
                   </div>

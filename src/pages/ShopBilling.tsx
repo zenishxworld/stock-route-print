@@ -72,12 +72,12 @@ const ShopBilling = () => {
       if (currentRoute && currentDate) {
         fetchProductsAndStock(currentRoute, currentDate);
       }
-      setLoading(false);
+      setLoading(false); // Reset loading state here
     };
 
     window.addEventListener('afterprint', handleAfterPrint);
     return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, [currentRoute, currentDate]);
+  }, [currentRoute, currentDate]); // Dependencies look correct
 
   // Global shop details cache (address/phone) helpers
   const getDetailsKey = (_routeId?: string) => `shopDetails:global`;
@@ -499,48 +499,44 @@ const ShopBilling = () => {
     setShowBill(true);
   };
 
+  // *** FIXED handlePrintBill function ***
   const handlePrintBill = async () => {
-    setLoading(true);
+    setLoading(true); // Indicate loading
+
+    // Prepare sale data
+    const mockUserId = "00000000-0000-0000-0000-000000000000"; // Keep placeholder ID
+    const soldItems = getSoldItems();
+    const saleData = {
+      auth_user_id: mockUserId, // Use placeholder ID
+      shop_name: shopName,
+      date: currentDate,
+      products_sold: {
+        items: soldItems.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          unit: item.unit,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total,
+        })),
+        shop_address: shopAddress,
+        shop_phone: shopPhone,
+      },
+      total_amount: calculateTotal(),
+      route_id: currentRoute,
+      truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
+    };
 
     try {
-      // Prepare sale data synchronously first
-      const mockUserId = "00000000-0000-0000-0000-000000000000";
-      const soldItems = getSoldItems();
-
-      const saleData = {
-        auth_user_id: mockUserId,
-        shop_name: shopName,
-        date: currentDate,
-        products_sold: {
-          items: soldItems.map(item => ({
-            productId: item.productId,
-            productName: item.productName,
-            unit: item.unit,
-            quantity: item.quantity,
-            price: item.price,
-            total: item.total,
-          })),
-          shop_address: shopAddress,
-          shop_phone: shopPhone,
-        },
-        total_amount: calculateTotal(),
-        route_id: currentRoute,
-        truck_id: "00000000-0000-0000-0000-000000000000", // Placeholder for truck
-      };
-
-      // Trigger print synchronously within user gesture
-      window.print();
-
-      // Save sale to database without blocking the print dialog
+      // 1. Save the sale data to Supabase FIRST
       const { error } = await supabase.from("sales").insert(saleData);
       if (error) {
-        throw error;
+        throw error; // Throw error if saving fails
       }
 
-      // Save shop name to local suggestions for quick reuse
+      // 2. Save shop name and details locally AFTER successful Supabase insert
       if (currentRoute && shopName.trim()) {
         saveShopNameToLocal(currentRoute, shopName.trim());
-        // Persist address/phone so they auto-fill next time for this shop
         saveShopDetailsToLocal(
           currentRoute,
           shopName.trim(),
@@ -549,19 +545,27 @@ const ShopBilling = () => {
         );
       }
 
+      // 3. Trigger print AFTER data is saved and local storage is updated
+      // Use a brief timeout to ensure the UI state (showBill=true) is rendered
+      setTimeout(() => {
+          window.print();
+          // The afterprint listener will handle resetting state and loading=false
+      }, 50); // Small delay to let React render updates
+
       toast({
         title: "Success!",
-        description: "Bill printed and sale recorded successfully",
+        description: "Sale recorded. Opening print dialog...",
       });
+
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to save sale",
         variant: "destructive",
       });
-    } finally {
-      // Loading state will be cleared in afterprint to avoid racing the print dialog
+      setLoading(false); // Stop loading indicator on error
     }
+    // setLoading(false) is handled by the afterprint listener on success
   };
 
   const handleBackToForm = () => {
@@ -1210,7 +1214,7 @@ const ShopBilling = () => {
                   <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <Button
-                        onClick={handlePrintBill}
+                        onClick={handlePrintBill} // This button calls the fixed function
                         variant="success"
                         size="default"
                         className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
@@ -1220,7 +1224,7 @@ const ShopBilling = () => {
                         {loading ? "Printing..." : "Print Bill"}
                       </Button>
                       <Button
-                        onClick={() => window.print()}
+                        onClick={() => window.print()} // This button directly calls window.print()
                         variant="outline"
                         size="default"
                         className="flex-1 h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation w-full sm:w-auto shadow sm:shadow-none"
@@ -1490,7 +1494,7 @@ const ShopBilling = () => {
             box-shadow: none !important;
             border-radius: 0 !important;
           }
-          
+
           .receipt {
             width: 58mm !important;
             margin: 0 !important;
@@ -1511,4 +1515,3 @@ const ShopBilling = () => {
 };
 
 export default ShopBilling;
-

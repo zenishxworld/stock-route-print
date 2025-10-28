@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -325,6 +326,93 @@ const BillHistory = () => {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Portal: Render print-only receipt at document body level (same as ShopBilling) */}
+                {createPortal(
+                  <div id="print-receipt-container" style={{ display: 'none' }}>
+                    <div className="receipt-58mm">
+                      {/* Bill Header */}
+                      <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+                        <h1 style={{ margin: '0', fontSize: '12px', fontWeight: 'bold' }}>BHAVYA ENTERPRICE</h1>
+                        <p style={{ margin: '0', fontSize: '9px', fontWeight: 600 }}>Sales Invoice</p>
+                        {/* Address */}
+                        <div style={{ marginTop: '2px', fontSize: '8px' }}>
+                          <p style={{ margin: 0, lineHeight: '1.1' }}>Near Bala petrol pump</p>
+                          <p style={{ margin: 0, lineHeight: '1.1' }}>Jambusar Bharuch road</p>
+                        </div>
+                        {/* Phone and GSTIN */}
+                        <div style={{ marginTop: '2px', fontSize: '8px' }}>
+                          <p style={{ margin: 0, lineHeight: '1.1' }}>Phone: 8866756059</p>
+                          <p style={{ margin: 0, lineHeight: '1.1' }}>GSTIN: 24EVVPS8220P1ZF</p>
+                        </div>
+                        {/* Date/Time and Route */}
+                        <div style={{ marginTop: '2px', fontSize: '8px' }}>
+                          <p style={{ margin: 0 }}>Date: {selectedSale ? new Date(selectedSale.created_at).toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }) : ''}</p>
+                          <p style={{ margin: 0, fontWeight: 'bold' }}>Route: {getRouteName(selectedSale!.route_id)}</p>
+                        </div>
+                      </div>
+
+                      {/* Shop Details */}
+                      <div style={{ marginBottom: '4px', paddingBottom: '2px', borderTop: '1px dashed black', borderBottom: '1px dashed black', paddingTop: '2px' }}>
+                        <p style={{ fontSize: '9px', fontWeight: 600, margin: 0 }}>Shop: {selectedSale?.shop_name}</p>
+                        {!Array.isArray(selectedSale?.products_sold) && (selectedSale as any)?.products_sold?.shop_address && (
+                          <p style={{ fontSize: '8px', margin: 0 }}>Addr: {(selectedSale as any).products_sold.shop_address}</p>
+                        )}
+                        {!Array.isArray(selectedSale?.products_sold) && (selectedSale as any)?.products_sold?.shop_phone && (
+                          <p style={{ fontSize: '8px', margin: 0 }}>Ph: {(selectedSale as any).products_sold.shop_phone}</p>
+                        )}
+                      </div>
+
+                      {/* Products Table */}
+                      <div style={{ marginBottom: '4px' }}>
+                        <table style={{ width: '100%', fontSize: '8px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px dashed black' }}>
+                              <th style={{ textAlign: 'left', padding: '1px 0', fontSize: '8px' }}>Item</th>
+                              <th style={{ textAlign: 'center', padding: '1px 0', fontSize: '8px' }}>Qty</th>
+                              <th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Rate</th>
+                              <th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Amt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(Array.isArray(selectedSale.products_sold) ? selectedSale.products_sold : (selectedSale.products_sold?.items || [])).map((item: any, index: number) => (
+                              <tr key={index}>
+                                <td style={{ padding: '1px 0', fontSize: '8px' }}>{item.productName || item.name}</td>
+                                <td style={{ padding: '1px 0', textAlign: 'center', fontSize: '8px' }}>{item.quantity} {item.unit === 'box' ? 'Box' : item.unit === 'pcs' ? 'pcs' : ''}</td>
+                                <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px' }}>₹{(item.price ?? 0).toFixed(2)}</td>
+                                <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px', fontWeight: 600 }}>₹{(item.total ?? (item.quantity * (item.price ?? 0))).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Total Section */}
+                      <div style={{ borderTop: '1px dashed black', paddingTop: '2px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>TOTAL:</span>
+                          <span style={{ fontSize: '12px', fontWeight: 'bold' }}>₹{selectedSale?.total_amount.toFixed(2)}</span>
+                        </div>
+                        <div style={{ fontSize: '8px', textAlign: 'right' }}>
+                          Items: {(Array.isArray(selectedSale!.products_sold) ? selectedSale!.products_sold : (selectedSale!.products_sold?.items || [])).reduce((sum: number, it: any) => sum + (it.quantity || 0), 0)}
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div style={{ marginTop: '4px', paddingTop: '2px', borderTop: '1px dashed black', textAlign: 'center' }}>
+                        <p style={{ fontSize: '9px', fontWeight: 600, margin: 0 }}>Thank you for your business!</p>
+                        <p style={{ fontSize: '8px', margin: 0 }}>Have a great day!</p>
+                      </div>
+                    </div>
+                  </div>,
+                  document.body
+                )}
               </div>
             )}
           </DialogContent>
@@ -346,6 +434,85 @@ const BillHistory = () => {
             size: 58mm auto;
             margin: 0mm;
           }
+
+          html, body {
+            width: 58mm !important;
+          }
+
+          /* Hide all body children except our print container */
+          body > *:not(#print-receipt-container) {
+            display: none !important;
+          }
+
+          /* Show the print container */
+          #print-receipt-container {
+            display: block !important;
+            position: relative !important;
+            width: 58mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            box-sizing: border-box !important;
+          }
+
+          .receipt-58mm {
+            display: block !important;
+            width: 58mm !important;
+            max-width: 58mm !important;
+            margin: 0 !important;
+            padding: 2mm !important;
+            background: white !important;
+            color: #000 !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            font-size: 9px !important;
+            line-height: 1.15 !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            box-sizing: border-box !important;
+          }
+
+          .receipt-58mm * {
+            color: #000 !important;
+            border-color: #000 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+          }
+
+          .receipt-58mm p { margin: 0 !important; }
+
+          .receipt-58mm h1 {
+            font-size: 12px !important;
+            font-weight: bold !important;
+            margin: 2px 0 !important;
+            text-align: center !important;
+          }
+
+          .receipt-58mm table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important;
+            margin: 2px 0 !important;
+          }
+
+          .receipt-58mm th,
+          .receipt-58mm td {
+            padding: 1px 2px !important;
+            font-size: 9px !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+          }
+
+          .receipt-58mm th {
+            font-weight: bold !important;
+            border-bottom: 1px dashed black !important;
+          }
+
+          /* Column widths to avoid overflow */
+          .receipt-58mm th:nth-child(1), .receipt-58mm td:nth-child(1) { width: 52% !important; }
+          .receipt-58mm th:nth-child(2), .receipt-58mm td:nth-child(2) { width: 14% !important; }
+          .receipt-58mm th:nth-child(3), .receipt-58mm td:nth-child(3) { width: 16% !important; }
+          .receipt-58mm th:nth-child(4), .receipt-58mm td:nth-child(4) { width: 18% !important; }
 
           .receipt {
             width: 58mm !important;

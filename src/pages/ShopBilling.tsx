@@ -60,10 +60,20 @@ const ShopBilling = () => {
   const [unitMode, setUnitMode] = useState<'pcs' | 'box'>('box');
   const [tempQuantity, setTempQuantity] = useState<number>(0);
   const [itemUnitModes, setItemUnitModes] = useState<Record<string, 'pcs' | 'box'>>({});
+  // Snapshot to ensure printed data is consistent and not affected by state resets
+  const [printSnapshot, setPrintSnapshot] = useState<null | {
+    shopName: string;
+    shopAddress: string;
+    shopPhone: string;
+    routeName: string;
+    items: Array<{ productId: string; productName: string; unit: 'box' | 'pcs'; quantity: number; price: number; total: number; }>;
+    total: number;
+  }>(null);
 
   // Defer cleanup until the print dialog completes
   useEffect(() => {
     const handleAfterPrint = () => {
+      setPrintSnapshot(null);
       setShopName("");
       setShopAddress("");
       setShopPhone("");
@@ -392,23 +402,33 @@ const ShopBilling = () => {
     setLoading(true);
 
     const soldItems = getSoldItems();
+    // Build snapshot for print content
+    const snapshot = {
+      shopName: shopName.trim(),
+      shopAddress: shopAddress.trim(),
+      shopPhone: shopPhone.trim(),
+      routeName: currentRouteName,
+      items: soldItems.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        unit: item.unit,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.total,
+      })),
+      total: calculateTotal(),
+    };
+    setPrintSnapshot(snapshot);
     const saleData = {
       auth_user_id: "00000000-0000-0000-0000-000000000000",
       shop_name: shopName,
       date: currentDate,
       products_sold: {
-        items: soldItems.map(item => ({
-          productId: item.productId,
-          productName: item.productName,
-          unit: item.unit,
-          quantity: item.quantity,
-          price: item.price,
-          total: item.total,
-        })),
+        items: snapshot.items,
         shop_address: shopAddress,
         shop_phone: shopPhone,
       },
-      total_amount: calculateTotal(),
+      total_amount: snapshot.total,
       route_id: currentRoute,
       truck_id: "00000000-0000-0000-0000-000000000000",
     };
@@ -747,21 +767,21 @@ const ShopBilling = () => {
               </div>
               <div style={{ marginTop: '2px', fontSize: '8px' }}>
                 <p style={{ margin: '0' }}>Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                {currentRouteName && (<p style={{ margin: '0', fontWeight: 'bold' }}>Route: {currentRouteName}</p>)}
+                {(printSnapshot?.routeName || currentRouteName) && (<p style={{ margin: '0', fontWeight: 'bold' }}>Route: {printSnapshot?.routeName || currentRouteName}</p>)}
               </div>
             </div>
             {/* Shop Details */}
             <div style={{ marginBottom: '4px', paddingBottom: '2px', borderTop: '1px dashed black', borderBottom: '1px dashed black', paddingTop: '2px' }}>
-              <p style={{ fontSize: '9px', fontWeight: '600', margin: '0' }}>Shop: {shopName}</p>
-              {shopAddress && (<p style={{ fontSize: '8px', margin: '0' }}>Addr: {shopAddress}</p>)}
-              {shopPhone && (<p style={{ fontSize: '8px', margin: '0' }}>Ph: {shopPhone}</p>)}
+              <p style={{ fontSize: '9px', fontWeight: '600', margin: '0' }}>Shop: {printSnapshot?.shopName || shopName}</p>
+              {(printSnapshot?.shopAddress || shopAddress) && (<p style={{ fontSize: '8px', margin: '0' }}>Addr: {printSnapshot?.shopAddress || shopAddress}</p>)}
+              {(printSnapshot?.shopPhone || shopPhone) && (<p style={{ fontSize: '8px', margin: '0' }}>Ph: {printSnapshot?.shopPhone || shopPhone}</p>)}
             </div>
             {/* Products Table */}
             <div style={{ marginBottom: '4px' }}>
               <table style={{ width: '100%', fontSize: '8px', borderCollapse: 'collapse' }}>
                 <thead><tr style={{ borderBottom: '1px dashed black' }}><th style={{ textAlign: 'left', padding: '1px 0', fontSize: '8px' }}>Item</th><th style={{ textAlign: 'center', padding: '1px 0', fontSize: '8px' }}>Qty</th><th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Rate</th><th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Amt</th></tr></thead>
                 <tbody>
-                  {getSoldItems().map((item, index) => (
+                  {(printSnapshot?.items || getSoldItems()).map((item, index) => (
                     <tr key={`${item.productId}-${item.unit}-${index}`}>
                       <td style={{ padding: '1px 0', fontSize: '8px' }}>{item.productName}</td>
                       <td style={{ padding: '1px 0', textAlign: 'center', fontSize: '8px' }}>{item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}</td>
@@ -774,8 +794,8 @@ const ShopBilling = () => {
             </div>
             {/* Total Section */}
             <div style={{ borderTop: '1px dashed black', paddingTop: '2px', marginBottom: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: '11px', fontWeight: 'bold' }}>TOTAL:</span><span style={{ fontSize: '12px', fontWeight: 'bold' }}>₹{calculateTotal().toFixed(2)}</span></div>
-              <div style={{ fontSize: '8px', textAlign: 'right' }}>Items: {soldItemsCount}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: '11px', fontWeight: 'bold' }}>TOTAL:</span><span style={{ fontSize: '12px', fontWeight: 'bold' }}>₹{(printSnapshot?.total ?? calculateTotal()).toFixed(2)}</span></div>
+              <div style={{ fontSize: '8px', textAlign: 'right' }}>Items: {(printSnapshot?.items || getSoldItems()).reduce((sum, it) => sum + (it.quantity || 0), 0)}</div>
             </div>
             {/* Footer */}
             <div style={{ marginTop: '4px', paddingTop: '2px', borderTop: '1px dashed black', textAlign: 'center' }}>

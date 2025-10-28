@@ -73,14 +73,9 @@ const ShopBilling = () => {
   // Defer cleanup until the print dialog completes
   useEffect(() => {
     const handleAfterPrint = () => {
-      setPrintSnapshot(null);
-      setShopName("");
-      setShopAddress("");
-      setShopPhone("");
-      setShowBillPreviewUI(false); // Use the renamed state
-      if (currentRoute && currentDate) {
-        fetchProductsAndStock(currentRoute, currentDate);
-      }
+      // IMPORTANT: Do NOT clear bill data here.
+      // Some mobile browsers (iOS Safari) may fire 'afterprint' early while the preview is still rendering.
+      // Clearing state here blanked the preview. Keep snapshot and inputs intact.
       setLoading(false);
     };
 

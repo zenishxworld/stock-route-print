@@ -237,7 +237,7 @@ const BillHistory = () => {
                 </div>
 
                 {/* Printable Bill — same layout as ShopBilling */}
-                <div className="receipt print:p-0 print:bg-white print:text-black print:font-mono print:w-[72mm] print:mx-auto">
+                <div className="receipt print:p-0 print:bg-white print:text-black print:font-mono print:w-[58mm] print:mx-0">
                   <Card className="border-0 shadow-strong print:shadow-none print:border-0">
                     <CardContent className="p-6 sm:p-8 print:p-2">
                       {/* Bill Header */}
@@ -341,15 +341,15 @@ const BillHistory = () => {
             color-adjust: exact;
           }
 
-          /* Set page size for 80mm roll printer */
+          /* Set page size for 58mm roll printer */
           @page {
-            size: 80mm auto;
-            margin: 3mm;
+            size: 58mm auto;
+            margin: 0mm;
           }
 
           .receipt {
-            width: 72mm !important;
-            margin: 0 auto !important;
+            width: 58mm !important;
+            margin: 0 !important;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
             color: #000 !important;
           }

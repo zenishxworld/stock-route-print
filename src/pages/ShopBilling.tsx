@@ -344,7 +344,7 @@ const ShopBilling = () => {
     setSaleItems(prev =>
       prev.map(item => {
         if (item.productId === productId && item.unit === unit) {
-          const validPrice = Math.max(1, newPrice);
+          const validPrice = (Number.isFinite(newPrice) && newPrice >= 0) ? newPrice : 0;
           return { ...item, price: validPrice, total: item.quantity * validPrice };
         }
         return item;
@@ -420,7 +420,7 @@ const ShopBilling = () => {
   const isValidPhone = (p: string) => /^\d{10}$/.test(p);
   const isValidForBilling = () => {
     const sold = getSoldItems();
-    return sold.length > 0 && sold.every(item => item.quantity > 0 && item.price >= 1);
+    return sold.length > 0 && sold.every(item => item.quantity > 0 && item.price >= 0);
   };
 
   const handleGenerateBill = () => {
@@ -433,7 +433,7 @@ const ShopBilling = () => {
       return;
     }
     if (!isValidForBilling()) {
-      toast({ title: "Error", description: "Please add products with valid quantity and price (>= ₹1)", variant: "destructive" });
+      toast({ title: "Error", description: "Please add products with valid quantity and non-negative price (₹0 allowed)", variant: "destructive" });
       return;
     }
     setShowBillPreviewUI(true); // Show the preview UI
@@ -732,14 +732,14 @@ const ShopBilling = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <div className="space-y-2"> {/* Box */}
                                 <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground">Unit: Box</span><span className="text-xs text-muted-foreground">Avail: {boxAvail} Box</span></div>
-                                <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={boxPrice} onChange={(e) => updatePrice(product.id, 'box', parseFloat(e.target.value) || product.price)} className="h-9 text-sm" min="1" step="0.01" disabled={boxAvail === 0} placeholder={`${product.box_price ?? product.price}`} /></div>
+                                <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={boxPrice} onChange={(e) => { const v = e.target.value; const num = v === '' ? 0 : parseFloat(v); updatePrice(product.id, 'box', Number.isFinite(num) ? num : 0); }} className="h-9 text-sm" min="0" step="0.01" disabled={boxAvail === 0} placeholder={`${product.box_price ?? product.price}`} /></div>
                                 <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Quantity (Box)</Label><div className="flex items-center gap-2"><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'box', -1)} disabled={boxQty === 0} className="h-9 w-9"><Minus className="w-4 h-4" /></Button><Input type="text" value={String(boxQty)} onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const newQuantity = Math.max(0, parseInt(sanitized) || 0); setQuantityDirect(product.id, 'box', newQuantity); }} className="w-16 text-center text-sm h-9" inputMode="numeric" pattern="[0-9]*" disabled={boxAvail === 0} /><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'box', 1)} disabled={boxQty >= boxAvail || boxAvail === 0} className="h-9 w-9"><Plus className="w-4 h-4" /></Button></div></div>
                               </div>
                               <div className="space-y-2"> {/* Pcs */}
                                 <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground">Unit: 1 pcs</span><span className="text-xs text-muted-foreground">Avail: {pcsAvail} pcs</span></div>
                                 {(() => { const ppb = getPcsPerBox(product.id); const maxPcsCapacity = pcsAvail + boxAvail * ppb; return (
                                   <>
-                                    <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={pcsPrice} onChange={(e) => updatePrice(product.id, 'pcs', parseFloat(e.target.value) || product.price)} className="h-9 text-sm" min="1" step="0.01" disabled={maxPcsCapacity === 0} placeholder={`${product.pcs_price ?? ((product.box_price ?? product.price) / 24)}`} /></div>
+                                    <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={pcsPrice} onChange={(e) => { const v = e.target.value; const num = v === '' ? 0 : parseFloat(v); updatePrice(product.id, 'pcs', Number.isFinite(num) ? num : 0); }} className="h-9 text-sm" min="0" step="0.01" disabled={maxPcsCapacity === 0} placeholder={`${product.pcs_price ?? ((product.box_price ?? product.price) / 24)}`} /></div>
                                     <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Quantity (pcs)</Label><div className="flex items-center gap-2"><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', -1)} disabled={pcsQty === 0} className="h-9 w-9"><Minus className="w-4 h-4" /></Button><Input type="text" value={String(pcsQty)} onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const newQuantity = Math.max(0, parseInt(sanitized) || 0); setQuantityDirect(product.id, 'pcs', newQuantity); }} className="w-16 text-center text-sm h-9" inputMode="numeric" pattern="[0-9]*" disabled={maxPcsCapacity === 0} /><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', 1)} disabled={pcsQty >= maxPcsCapacity || maxPcsCapacity === 0} className="h-9 w-9"><Plus className="w-4 h-4" /></Button></div></div>
                                   </>
                                 ); })()}

@@ -81,7 +81,10 @@ const BillHistory = () => {
 
         const { data, error } = await query;
         if (error) throw error;
-        setSales((data || []) as SaleRow[]);
+        // Apply a client-side fallback filter to ensure correctness even if server-side eq misses due to any mismatch
+        const raw = (data || []) as SaleRow[];
+        const filtered = filterRouteId ? raw.filter((s) => String(s.route_id) === String(filterRouteId)) : raw;
+        setSales(filtered);
       } catch (err: any) {
         toast({ title: "Error", description: err.message || "Failed to load bills", variant: "destructive" });
       } finally {

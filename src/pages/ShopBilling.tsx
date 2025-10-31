@@ -46,6 +46,7 @@ const ShopBilling = () => {
   const [currentRoute, setCurrentRoute] = useState("");
   const [currentRouteName, setCurrentRouteName] = useState("");
   const [currentDate, setCurrentDate] = useState("");
+  const [currentStockId, setCurrentStockId] = useState<string>("");
   const [shopAddress, setShopAddress] = useState("");
   const [shopPhone, setShopPhone] = useState("");
   // Shop name suggestions state
@@ -229,6 +230,7 @@ const ShopBilling = () => {
         .eq("date", date)
         .maybeSingle();
       if (stockError && stockError.code !== 'PGRST116') throw stockError;
+      if (stockData?.id) setCurrentStockId(stockData.id);
 
       const { data: salesData, error: salesError } = await supabase
         .from("sales")
@@ -277,27 +279,65 @@ const ShopBilling = () => {
   };
 
 
-  // --- updateQuantity, setQuantityDirect, updatePrice remain the same ---
+  // --- updateQuantity, setQuantityDirect with auto-cut logic ---
+  const getPcsPerBox = (productId: string): number => {
+    const p = products.find(pr => pr.id === productId);
+    if (!p) return 24;
+    const pcs = p.pcs_price ?? ((p.box_price ?? p.price) / 24);
+    const box = p.box_price ?? p.price;
+    const ratio = Math.round(box / (pcs || 1));
+    return Number.isFinite(ratio) && ratio > 0 ? ratio : 24;
+  };
+
   const updateQuantity = (productId: string, unit: 'box' | 'pcs', change: number) => {
     setSaleItems(prev => {
-      const targetItem = prev.find(i => i.productId === productId && i.unit === unit);
-      const maxAllowed = targetItem?.availableStock ?? 0;
-      return prev.map(item =>
-        item.productId === productId && item.unit === unit
-          ? { ...item, quantity: Math.max(0, Math.min(maxAllowed, item.quantity + change)), total: Math.max(0, Math.min(maxAllowed, item.quantity + change)) * item.price }
-          : item
-      );
+      const boxItem = prev.find(i => i.productId === productId && i.unit === 'box');
+      const pcsItem = prev.find(i => i.productId === productId && i.unit === 'pcs');
+      const boxAvail = boxItem?.availableStock ?? 0;
+      const pcsAvail = pcsItem?.availableStock ?? 0;
+
+      if (unit === 'box') {
+        const maxAllowed = boxAvail;
+        return prev.map(item =>
+          item.productId === productId && item.unit === 'box'
+            ? { ...item, quantity: Math.max(0, Math.min(maxAllowed, item.quantity + change)), total: Math.max(0, Math.min(maxAllowed, item.quantity + change)) * item.price }
+            : item
+        );
+      } else {
+        const ppb = getPcsPerBox(productId);
+        const maxAllowed = pcsAvail + boxAvail * ppb; // allow cutting boxes automatically
+        return prev.map(item =>
+          item.productId === productId && item.unit === 'pcs'
+            ? { ...item, quantity: Math.max(0, Math.min(maxAllowed, item.quantity + change)), total: Math.max(0, Math.min(maxAllowed, item.quantity + change)) * item.price }
+            : item
+        );
+      }
     });
   };
+
   const setQuantityDirect = (productId: string, unit: 'box' | 'pcs', quantity: number) => {
     setSaleItems(prev => {
-      const targetItem = prev.find(i => i.productId === productId && i.unit === unit);
-      const maxAllowed = targetItem?.availableStock ?? 0;
-      return prev.map(item =>
-        item.productId === productId && item.unit === unit
-          ? { ...item, quantity: Math.max(0, Math.min(maxAllowed, quantity)), total: Math.max(0, Math.min(maxAllowed, quantity)) * item.price }
-          : item
-      );
+      const boxItem = prev.find(i => i.productId === productId && i.unit === 'box');
+      const pcsItem = prev.find(i => i.productId === productId && i.unit === 'pcs');
+      const boxAvail = boxItem?.availableStock ?? 0;
+      const pcsAvail = pcsItem?.availableStock ?? 0;
+
+      if (unit === 'box') {
+        const maxAllowed = boxAvail;
+        return prev.map(item =>
+          item.productId === productId && item.unit === 'box'
+            ? { ...item, quantity: Math.max(0, Math.min(maxAllowed, quantity)), total: Math.max(0, Math.min(maxAllowed, quantity)) * item.price }
+            : item
+        );
+      } else {
+        const ppb = getPcsPerBox(productId);
+        const maxAllowed = pcsAvail + boxAvail * ppb;
+        return prev.map(item =>
+          item.productId === productId && item.unit === 'pcs'
+            ? { ...item, quantity: Math.max(0, Math.min(maxAllowed, quantity)), total: Math.max(0, Math.min(maxAllowed, quantity)) * item.price }
+            : item
+        );
+      }
     });
   };
   const updatePrice = (productId: string, unit: 'box' | 'pcs', newPrice: number) => {
@@ -331,8 +371,13 @@ const ShopBilling = () => {
       const step = 1;
       let next = q + delta * step;
       if (selectedProduct) {
-        const si = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === unitMode);
-        const max = si ? si.availableStock : Infinity;
+        const boxItem = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === 'box');
+        const pcsItem = saleItems.find((i) => i.productId === selectedProduct.id && i.unit === 'pcs');
+        const boxAvail = boxItem?.availableStock ?? 0;
+        const pcsAvail = pcsItem?.availableStock ?? 0;
+        const max = unitMode === 'pcs'
+          ? (pcsAvail + boxAvail * getPcsPerBox(selectedProduct.id))
+          : boxAvail;
         next = Math.max(0, Math.min(max, next));
       } else {
         next = Math.max(0, next);
@@ -340,11 +385,14 @@ const ShopBilling = () => {
       return next;
     });
   };
-   const handleAddProductToSale = () => {
+  const handleAddProductToSale = () => {
     if (!selectedProduct) return;
     const pid = selectedProduct.id;
-    const target = saleItems.find((item) => item.productId === pid && item.unit === unitMode);
-    const maxAvail = target ? target.availableStock : 0;
+    const boxItem = saleItems.find((i) => i.productId === pid && i.unit === 'box');
+    const pcsItem = saleItems.find((i) => i.productId === pid && i.unit === 'pcs');
+    const boxAvail = boxItem?.availableStock ?? 0;
+    const pcsAvail = pcsItem?.availableStock ?? 0;
+    const maxAvail = unitMode === 'pcs' ? (pcsAvail + boxAvail * getPcsPerBox(pid)) : boxAvail;
     const desired = Math.max(0, tempQuantity);
     const finalQty = Math.min(desired, maxAvail);
 
@@ -436,12 +484,61 @@ const ShopBilling = () => {
       const { error } = await supabase.from("sales").insert(saleData);
       if (error) throw error;
 
+      // Persist shop hinting info
       if (currentRoute && shopName.trim()) {
         saveShopNameToLocal(currentRoute, shopName.trim());
         saveShopDetailsToLocal(currentRoute, shopName.trim(), shopAddress.trim(), shopPhone.trim());
       }
 
-      toast({ title: "Saved", description: "Bill saved successfully." });
+      // Update today's stock by applying auto box-cut logic based on this sale
+      try {
+        const { data: stockRow, error: stockRowError } = await supabase
+          .from("daily_stock")
+          .select("id, stock")
+          .eq("route_id", currentRoute)
+          .eq("date", currentDate)
+          .maybeSingle();
+        if (stockRowError && stockRowError.code !== 'PGRST116') throw stockRowError;
+
+        const byProduct: Record<string, { boxAvail: number; pcsAvail: number; ppb: number; soldBox: number; soldPcs: number }> = {};
+        products.forEach(p => {
+          const boxItem = saleItems.find(i => i.productId === p.id && i.unit === 'box');
+          const pcsItem = saleItems.find(i => i.productId === p.id && i.unit === 'pcs');
+          const soldBoxItem = snapshot.items.find(i => i.productId === p.id && i.unit === 'box');
+          const soldPcsItem = snapshot.items.find(i => i.productId === p.id && i.unit === 'pcs');
+          const ppb = getPcsPerBox(p.id);
+          byProduct[p.id] = {
+            boxAvail: boxItem?.availableStock ?? 0,
+            pcsAvail: pcsItem?.availableStock ?? 0,
+            ppb,
+            soldBox: soldBoxItem?.quantity ?? 0,
+            soldPcs: soldPcsItem?.quantity ?? 0,
+          };
+        });
+
+        const newStockEntries: Array<{ productId: string; unit: 'box' | 'pcs'; quantity: number }> = [];
+        Object.entries(byProduct).forEach(([pid, info]) => {
+          const needExtraPcs = Math.max(0, (info.soldPcs ?? 0) - (info.pcsAvail ?? 0));
+          const boxesToCut = Math.min(info.boxAvail, Math.ceil(needExtraPcs / (info.ppb || 24)));
+          const boxAfterSales = Math.max(0, info.boxAvail - (info.soldBox ?? 0) - boxesToCut);
+          const pcsAfterSales = Math.max(0, (info.pcsAvail ?? 0) + boxesToCut * (info.ppb || 24) - (info.soldPcs ?? 0));
+          newStockEntries.push({ productId: pid, unit: 'box', quantity: boxAfterSales });
+          newStockEntries.push({ productId: pid, unit: 'pcs', quantity: pcsAfterSales });
+        });
+
+        if (stockRow?.id) {
+          const { error: updateErr } = await supabase
+            .from("daily_stock")
+            .update({ stock: newStockEntries })
+            .eq("id", stockRow.id);
+          if (updateErr) throw updateErr;
+        }
+      } catch (stockUpdateError: any) {
+        console.warn('Stock update failed', stockUpdateError);
+        toast({ title: "Stock Update Warning", description: stockUpdateError?.message || String(stockUpdateError), variant: "destructive" });
+      }
+
+      toast({ title: "Saved", description: "Bill saved and stock updated." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save bill", variant: "destructive" });
       setLoading(false);
@@ -635,7 +732,7 @@ const ShopBilling = () => {
                             <div className="flex items-center gap-2">
                               <Button type="button" variant="outline" size="icon" onClick={() => adjustTempQuantity(-1)} className="h-9 w-9"><Minus className="w-4 h-4" /></Button>
                               <Input type="text" value={String(tempQuantity)}
-                                onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const raw = parseInt(sanitized) || 0; const si = saleItems.find(i => i.productId === selectedProduct.id && i.unit === unitMode); const max = si?.availableStock ?? 0; setTempQuantity(Math.max(0, Math.min(max, raw))); }}
+                                onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const raw = parseInt(sanitized) || 0; const boxItem = saleItems.find(i => i.productId === selectedProduct.id && i.unit === 'box'); const pcsItem = saleItems.find(i => i.productId === selectedProduct.id && i.unit === 'pcs'); const boxAvail = boxItem?.availableStock ?? 0; const pcsAvail = pcsItem?.availableStock ?? 0; const max = unitMode === 'pcs' ? (pcsAvail + boxAvail * getPcsPerBox(selectedProduct.id)) : boxAvail; setTempQuantity(Math.max(0, Math.min(max, raw))); }}
                                 className="w-20 text-center h-9" inputMode="numeric" pattern="[0-9]*"
                               />
                               <Button type="button" variant="outline" size="icon" onClick={() => adjustTempQuantity(1)} className="h-9 w-9"><Plus className="w-4 h-4" /></Button>
@@ -686,8 +783,12 @@ const ShopBilling = () => {
                               </div>
                               <div className="space-y-2"> {/* Pcs */}
                                 <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground">Unit: 1 pcs</span><span className="text-xs text-muted-foreground">Avail: {pcsAvail} pcs</span></div>
-                                <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={pcsPrice} onChange={(e) => updatePrice(product.id, 'pcs', parseFloat(e.target.value) || product.price)} className="h-9 text-sm" min="1" step="0.01" disabled={pcsAvail === 0} placeholder={`${product.pcs_price ?? ((product.box_price ?? product.price) / 24)}`} /></div>
-                                <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Quantity (pcs)</Label><div className="flex items-center gap-2"><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', -1)} disabled={pcsQty === 0} className="h-9 w-9"><Minus className="w-4 h-4" /></Button><Input type="text" value={String(pcsQty)} onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const newQuantity = Math.max(0, parseInt(sanitized) || 0); setQuantityDirect(product.id, 'pcs', newQuantity); }} className="w-16 text-center text-sm h-9" inputMode="numeric" pattern="[0-9]*" disabled={pcsAvail === 0} /><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', 1)} disabled={pcsQty >= pcsAvail || pcsAvail === 0} className="h-9 w-9"><Plus className="w-4 h-4" /></Button></div></div>
+                                {(() => { const ppb = getPcsPerBox(product.id); const maxPcsCapacity = pcsAvail + boxAvail * ppb; return (
+                                  <>
+                                    <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={pcsPrice} onChange={(e) => updatePrice(product.id, 'pcs', parseFloat(e.target.value) || product.price)} className="h-9 text-sm" min="1" step="0.01" disabled={maxPcsCapacity === 0} placeholder={`${product.pcs_price ?? ((product.box_price ?? product.price) / 24)}`} /></div>
+                                    <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Quantity (pcs)</Label><div className="flex items-center gap-2"><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', -1)} disabled={pcsQty === 0} className="h-9 w-9"><Minus className="w-4 h-4" /></Button><Input type="text" value={String(pcsQty)} onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const newQuantity = Math.max(0, parseInt(sanitized) || 0); setQuantityDirect(product.id, 'pcs', newQuantity); }} className="w-16 text-center text-sm h-9" inputMode="numeric" pattern="[0-9]*" disabled={maxPcsCapacity === 0} /><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', 1)} disabled={pcsQty >= maxPcsCapacity || maxPcsCapacity === 0} className="h-9 w-9"><Plus className="w-4 h-4" /></Button></div></div>
+                                  </>
+                                ); })()}
                               </div>
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t"><div className="space-y-1"><p className="text-sm font-semibold text-warning">Available: {boxAvail} Box, {pcsAvail} pcs</p></div>{(boxQty + pcsQty) > 0 && (<div className="text-right"><p className="text-sm font-semibold text-success-green">Line Total: ₹{lineTotal.toFixed(2)}</p></div>)}</div>

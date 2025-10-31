@@ -490,55 +490,9 @@ const ShopBilling = () => {
         saveShopDetailsToLocal(currentRoute, shopName.trim(), shopAddress.trim(), shopPhone.trim());
       }
 
-      // Update today's stock by applying auto box-cut logic based on this sale
-      try {
-        const { data: stockRow, error: stockRowError } = await supabase
-          .from("daily_stock")
-          .select("id, stock")
-          .eq("route_id", currentRoute)
-          .eq("date", currentDate)
-          .maybeSingle();
-        if (stockRowError && stockRowError.code !== 'PGRST116') throw stockRowError;
-
-        const byProduct: Record<string, { boxAvail: number; pcsAvail: number; ppb: number; soldBox: number; soldPcs: number }> = {};
-        products.forEach(p => {
-          const boxItem = saleItems.find(i => i.productId === p.id && i.unit === 'box');
-          const pcsItem = saleItems.find(i => i.productId === p.id && i.unit === 'pcs');
-          const soldBoxItem = snapshot.items.find(i => i.productId === p.id && i.unit === 'box');
-          const soldPcsItem = snapshot.items.find(i => i.productId === p.id && i.unit === 'pcs');
-          const ppb = getPcsPerBox(p.id);
-          byProduct[p.id] = {
-            boxAvail: boxItem?.availableStock ?? 0,
-            pcsAvail: pcsItem?.availableStock ?? 0,
-            ppb,
-            soldBox: soldBoxItem?.quantity ?? 0,
-            soldPcs: soldPcsItem?.quantity ?? 0,
-          };
-        });
-
-        const newStockEntries: Array<{ productId: string; unit: 'box' | 'pcs'; quantity: number }> = [];
-        Object.entries(byProduct).forEach(([pid, info]) => {
-          const needExtraPcs = Math.max(0, (info.soldPcs ?? 0) - (info.pcsAvail ?? 0));
-          const boxesToCut = Math.min(info.boxAvail, Math.ceil(needExtraPcs / (info.ppb || 24)));
-          const boxAfterSales = Math.max(0, info.boxAvail - (info.soldBox ?? 0) - boxesToCut);
-          const pcsAfterSales = Math.max(0, (info.pcsAvail ?? 0) + boxesToCut * (info.ppb || 24) - (info.soldPcs ?? 0));
-          newStockEntries.push({ productId: pid, unit: 'box', quantity: boxAfterSales });
-          newStockEntries.push({ productId: pid, unit: 'pcs', quantity: pcsAfterSales });
-        });
-
-        if (stockRow?.id) {
-          const { error: updateErr } = await supabase
-            .from("daily_stock")
-            .update({ stock: newStockEntries })
-            .eq("id", stockRow.id);
-          if (updateErr) throw updateErr;
-        }
-      } catch (stockUpdateError: any) {
-        console.warn('Stock update failed', stockUpdateError);
-        toast({ title: "Stock Update Warning", description: stockUpdateError?.message || String(stockUpdateError), variant: "destructive" });
-      }
-
-      toast({ title: "Saved", description: "Bill saved and stock updated." });
+      // Do not mutate daily_stock here. It must represent the start-of-day stock
+      // so that Day Summary can calculate Remaining = Start - Sold correctly.
+      toast({ title: "Saved", description: "Bill saved successfully." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save bill", variant: "destructive" });
       setLoading(false);

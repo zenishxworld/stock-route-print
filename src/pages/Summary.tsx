@@ -150,15 +150,15 @@ const Summary = () => {
       
       if (products) {
         products.forEach(product => {
-          // Initial stock per unit
-          let startBox = 0;
-          let startPcs = 0;
+          // Read current stock per unit from daily_stock (treated as remaining)
+          let remainingBox = 0;
+          let remainingPcs = 0;
           if (dailyStock && dailyStock.stock && Array.isArray(dailyStock.stock)) {
             const stockItems = dailyStock.stock as any[];
             const boxStock = stockItems.find((s: any) => s.productId === product.id && s.unit === 'box');
             const pcsStock = stockItems.find((s: any) => s.productId === product.id && (s.unit === 'pcs' || !('unit' in s)));
-            startBox = boxStock?.quantity || 0;
-            startPcs = pcsStock?.quantity || 0;
+            remainingBox = boxStock?.quantity || 0;
+            remainingPcs = pcsStock?.quantity || 0;
           }
 
           // Sold per unit and revenue
@@ -186,8 +186,17 @@ const Summary = () => {
             });
           }
 
-          const remainingBox = Math.max(0, startBox - soldBox);
-          const remainingPcs = Math.max(0, startPcs - soldPcs);
+          // Derive start-of-day using remaining + sold and approximate boxes cut for pcs
+          const ppb = (() => {
+            const boxPrice = (product as any).box_price ?? product.price;
+            const pcsPrice = (product as any).pcs_price ?? (boxPrice / 24);
+            const ratio = Math.round(boxPrice / (pcsPrice || 1));
+            return Number.isFinite(ratio) && ratio > 0 ? ratio : 24;
+          })();
+
+          const boxesCutApprox = Math.floor(((remainingPcs || 0) + (soldPcs || 0)) / ppb);
+          const startBox = (remainingBox || 0) + (soldBox || 0) + boxesCutApprox;
+          const startPcs = (((remainingPcs || 0) + (soldPcs || 0)) % ppb);
 
           // Only include products that were loaded or sold
           if ((startBox + startPcs) > 0 || (soldBox + soldPcs) > 0) {

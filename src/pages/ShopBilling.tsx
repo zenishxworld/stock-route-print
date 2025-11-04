@@ -102,6 +102,22 @@ const ShopBilling = () => {
     return map[name];
   };
 
+  // Normalize products_sold payload which can be stored as an array or
+  // as an object { items: [...] }. Also handle stringified JSON.
+  const normalizeSaleProducts = (ps: any): any[] => {
+    if (!ps) return [];
+    if (Array.isArray(ps)) return ps;
+    if (Array.isArray(ps?.items)) return ps.items;
+    if (typeof ps === 'string') {
+      try {
+        const parsed = JSON.parse(ps);
+        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed?.items)) return parsed.items;
+      } catch {}
+    }
+    return [];
+  };
+
   // --- Functions for shop suggestions (loadShopSuggestions, saveShopNameToLocal, removeShopName) remain the same ---
   const loadShopSuggestions = async (routeId: string) => {
     try {
@@ -252,20 +268,25 @@ const ShopBilling = () => {
         let soldBoxes = 0, soldPcs = 0;
         if (salesData) {
           salesData.forEach(sale => {
-            const items = Array.isArray(sale.products_sold) ? sale.products_sold : [];
+            const items = normalizeSaleProducts((sale as any).products_sold);
             items.forEach((p: any) => {
               if (p.productId === product.id) {
-                if (p.unit === 'box') soldBoxes += (p.quantity || 0);
-                else soldPcs += (p.quantity || 0);
+                const q = p.quantity || 0;
+                if ((p.unit || 'pcs') === 'box') soldBoxes += q; else soldPcs += q;
               }
             });
           });
         }
-        const availableBox = Math.max(0, initialBox - soldBoxes);
-        const availablePcs = Math.max(0, initialPcs - soldPcs);
+        const ppb = getPcsPerBox(product.id);
+        const startTotalPcs = (initialBox * ppb) + initialPcs;
+        const soldTotalPcs = (soldBoxes * ppb) + soldPcs;
+        const remainingTotalPcs = Math.max(0, startTotalPcs - soldTotalPcs);
+        const availableBox = Math.floor(remainingTotalPcs / ppb);
+        const availablePcs = remainingTotalPcs % ppb;
+
         return [
           { productId: product.id, productName: product.name, unit: 'box' as const, quantity: 0, price: product.box_price ?? product.price, total: 0, availableStock: availableBox },
-          { productId: product.id, productName: product.name, unit: 'pcs' as const, quantity: 0, price: product.pcs_price ?? (product.box_price ?? product.price) / 24, total: 0, availableStock: availablePcs }
+          { productId: product.id, productName: product.name, unit: 'pcs' as const, quantity: 0, price: product.pcs_price ?? ((product.box_price ?? product.price) / ppb), total: 0, availableStock: availablePcs }
         ];
       });
       setSaleItems(saleItemsWithStock);
@@ -493,6 +514,13 @@ const ShopBilling = () => {
 
       // Do not mutate daily_stock here. It must represent the start-of-day stock
       // so that Day Summary can calculate Remaining = Start - Sold correctly.
+      // Instead, immediately refresh availability by subtracting today's sales
+      if (currentRoute && currentDate) {
+        await fetchProductsAndStock(currentRoute, currentDate);
+        // Reset current quantities so the next shop starts clean
+        setSaleItems(prev => prev.map(i => ({ ...i, quantity: 0, total: 0 })));
+      }
+      setLoading(false);
       toast({ title: "Saved", description: "Bill saved successfully." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save bill", variant: "destructive" });

@@ -70,6 +70,7 @@ export type Database = {
           id: string
           name: string
           pcs_price: number | null
+          pcs_per_box: number | null
           price: number
           status: string | null
           updated_at: string
@@ -81,6 +82,7 @@ export type Database = {
           id?: string
           name: string
           pcs_price?: number | null
+          pcs_per_box?: number | null
           price: number
           status?: string | null
           updated_at?: string
@@ -92,6 +94,7 @@ export type Database = {
           id?: string
           name?: string
           pcs_price?: number | null
+          pcs_per_box?: number | null
           price?: number
           status?: string | null
           updated_at?: string
@@ -254,6 +257,7 @@ export type Database = {
           p_price: number | null
           p_pcs_price: number | null
           p_box_price: number | null
+          p_pcs_per_box: number | null
           p_description: string | null
           p_status: string | null
         }

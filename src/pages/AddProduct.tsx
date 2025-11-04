@@ -151,14 +151,36 @@ const AddProduct = () => {
           .select()
           .single();
 
-        if (error) {
-          console.error("Update error:", error);
-          toast({ title: "Error", description: error.message, variant: "destructive" });
+        let updated = data;
+        let updateErr = error as any;
+        // If PostgREST schema cache hasn't reloaded yet, fall back to RPC
+        if (updateErr && typeof updateErr.message === 'string' && updateErr.message.includes("schema cache")) {
+          try {
+            const { error: rpcError } = await supabase.rpc('update_product', {
+              p_id: editingId,
+              p_name: productData.name,
+              p_price: productData.price,
+              p_pcs_price: productData.pcs_price,
+              p_box_price: productData.box_price,
+              p_pcs_per_box: productData.pcs_per_box,
+              p_description: productData.description,
+              p_status: productData.status,
+            });
+            if (rpcError) throw rpcError;
+            updateErr = null;
+          } catch (rpcErr: any) {
+            updateErr = rpcErr;
+          }
+        }
+
+        if (updateErr) {
+          console.error("Update error:", updateErr);
+          toast({ title: "Error", description: updateErr.message || 'Failed to update product', variant: "destructive" });
           setLoading(false);
           return;
         }
 
-        console.log('AddProduct: Notifying about product update', editingId, data);
+        console.log('AddProduct: Notifying about product update', editingId, updated);
         notifyProductUpdate(editingId, productData);
 
         toast({

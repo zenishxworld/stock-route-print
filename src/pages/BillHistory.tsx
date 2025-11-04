@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -152,17 +153,22 @@ const BillHistory = () => {
                 <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="h-10" />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm sm:text-base font-semibold">Filter by Route (optional)</Label>
-                <select
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                  value={filterRouteId}
-                  onChange={(e) => setFilterRouteId(e.target.value)}
-                >
-                  <option value="">All Routes</option>
-                  {routes.map((r) => (
-                    <option key={r.id} value={r.id}>{r.displayName}</option>
-                  ))}
-                </select>
+                <Label id="route-filter-label" className="text-sm sm:text-base font-semibold">Filter by Route (optional)</Label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Select value={filterRouteId} onValueChange={(v) => setFilterRouteId(v)}>
+                      <SelectTrigger className="h-10 w-full" aria-labelledby="route-filter-label">
+                        <SelectValue placeholder="All Routes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {routes.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>{r.displayName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="outline" size="sm" className="h-10" onClick={() => setFilterRouteId("")}>Clear</Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-sm sm:text-base font-semibold">Summary</Label>

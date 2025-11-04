@@ -26,6 +26,7 @@ interface Product {
   price: number;
   pcs_price?: number;
   box_price?: number;
+  pcs_per_box?: number;
   description: string | null;
   status: string | null;
   created_at: string;
@@ -44,6 +45,7 @@ const AddProduct = () => {
   const [name, setName] = useState("");
   const [boxPrice, setBoxPrice] = useState("");
   const [pcsPrice, setPcsPrice] = useState("");
+  const [pcsPerBox, setPcsPerBox] = useState("24");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
@@ -73,6 +75,7 @@ const AddProduct = () => {
     setName("");
     setBoxPrice("");
     setPcsPrice("");
+    setPcsPerBox("24");
     setDescription("");
     setEditingId(null);
   };
@@ -81,9 +84,11 @@ const AddProduct = () => {
     setEditingId(product.id);
     setName(product.name);
     const baseBox = product.box_price ?? product.price;
-    const basePcs = product.pcs_price ?? (baseBox ? baseBox / 24 : 0);
+    const ppb = product.pcs_per_box ?? 24;
+    const basePcs = product.pcs_price ?? (baseBox ? baseBox / ppb : 0);
     setBoxPrice((baseBox || 0).toString());
     setPcsPrice(basePcs ? basePcs.toFixed(2) : "");
+    setPcsPerBox(String(ppb));
     setDescription(product.description || "");
     // Scroll to top
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -104,8 +109,18 @@ const AddProduct = () => {
         setLoading(false);
         return;
       }
+      const ppbValue = parseInt(pcsPerBox, 10);
+      if (!Number.isFinite(ppbValue) || ppbValue <= 0) {
+        toast({
+          title: "Invalid PCS per Box",
+          description: "Please enter a valid number of pcs per box (min 1)",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
-      const pcsValue = parseFloat((boxValue / 24).toFixed(2));
+      const pcsValue = parseFloat((boxValue / ppbValue).toFixed(2));
 
       // Explicitly define each field to ensure they're properly recognized
       const productData = {
@@ -113,6 +128,7 @@ const AddProduct = () => {
         price: boxValue,
         pcs_price: pcsValue,
         box_price: boxValue,
+        pcs_per_box: ppbValue,
         description: description.trim() || null,
         status: "active",
       };
@@ -126,6 +142,7 @@ const AddProduct = () => {
             price: productData.price,
             pcs_price: productData.pcs_price,
             box_price: productData.box_price,
+            pcs_per_box: productData.pcs_per_box,
             description: productData.description,
             status: productData.status,
             updated_at: new Date().toISOString(),
@@ -157,6 +174,7 @@ const AddProduct = () => {
             price: productData.price,
             pcs_price: productData.pcs_price,
             box_price: productData.box_price,
+            pcs_per_box: productData.pcs_per_box,
             description: productData.description,
             status: productData.status
           })
@@ -308,13 +326,40 @@ const AddProduct = () => {
                     const v = e.target.value;
                     setBoxPrice(v);
                     const num = parseFloat(v);
-                    setPcsPrice(Number.isFinite(num) && num > 0 ? (num / 24).toFixed(2) : "");
+                    const ppbNum = parseInt(pcsPerBox, 10);
+                    setPcsPrice(Number.isFinite(num) && num > 0 && Number.isFinite(ppbNum) && ppbNum > 0 ? (num / ppbNum).toFixed(2) : "");
                   }}
                   className="h-11 sm:h-10 text-base"
                   inputMode="decimal"
                   required
                 />
-                <p className="mt-1 text-xs text-muted-foreground">PCS is auto-calculated as Box ÷ 24</p>
+                <p className="mt-1 text-xs text-muted-foreground">PCS price auto-calculated as Box ÷ PCS/Box</p>
+              </div>
+
+              {/* PCS per Box */}
+              <div className="space-y-2">
+                <Label htmlFor="pcs_per_box" className="text-sm sm:text-base font-semibold">
+                  PCS per Box *
+                </Label>
+                <Input
+                  id="pcs_per_box"
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  step="1"
+                  placeholder="e.g., 24"
+                  value={pcsPerBox}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPcsPerBox(v);
+                    const ppbNum = parseInt(v, 10);
+                    const boxNum = parseFloat(boxPrice);
+                    setPcsPrice(Number.isFinite(boxNum) && boxNum > 0 && Number.isFinite(ppbNum) && ppbNum > 0 ? (boxNum / ppbNum).toFixed(2) : "");
+                  }}
+                  className="h-11 sm:h-10 text-base"
+                  required
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Set how many pieces are in one box</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pcs_price" className="text-sm sm:text-base font-semibold">
@@ -404,15 +449,16 @@ const AddProduct = () => {
             ) : (
               <div className="space-y-3">
                 {activeProducts.map((product) => {
-                  const boxPrice = product.box_price ?? product.price ?? ((product.pcs_price ?? 0) * 24);
-                  const pcsPrice = product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / 24);
+                  const ppb = product.pcs_per_box ?? 24;
+                  const boxPrice = product.box_price ?? product.price ?? ((product.pcs_price ?? 0) * ppb);
+                  const pcsPrice = product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / ppb);
                   return (
                   <Card key={product.id} className="border border-border hover:border-primary/50 transition-colors">
                     <CardContent className="p-3 sm:p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-foreground text-base mb-1">{product.name}</h4>
-                          <p className="text-sm text-muted-foreground mb-1">Box: ₹{boxPrice.toFixed(2)} · PCS: ₹{pcsPrice.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground mb-1">Box: ₹{boxPrice.toFixed(2)} · PCS: ₹{pcsPrice.toFixed(2)} · Pcs/Box: {ppb}</p>
                           {product.description && (
                             <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                           )}
@@ -451,20 +497,21 @@ const AddProduct = () => {
                         Inactive Products ({inactiveProducts.length})
                       </h4>
                     </div>
-                    {inactiveProducts.map((product) => {
-                      const boxPrice = product.box_price ?? product.price ?? ((product.pcs_price ?? 0) * 24);
-                      const pcsPrice = product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / 24);
-                      return (
-                      <Card key={product.id} className="border border-border opacity-60">
-                        <CardContent className="p-3 sm:p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-foreground text-base mb-1">{product.name}</h4>
-                              <p className="text-sm text-muted-foreground mb-1">Box: ₹{boxPrice.toFixed(2)} · PCS: ₹{pcsPrice.toFixed(2)}</p>
-                              {product.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-                              )}
-                            </div>
+                {inactiveProducts.map((product) => {
+                  const ppb = product.pcs_per_box ?? 24;
+                  const boxPrice = product.box_price ?? product.price ?? ((product.pcs_price ?? 0) * ppb);
+                  const pcsPrice = product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / ppb);
+                  return (
+                  <Card key={product.id} className="border border-border opacity-60">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-foreground text-base mb-1">{product.name}</h4>
+                          <p className="text-sm text-muted-foreground mb-1">Box: ₹{boxPrice.toFixed(2)} · PCS: ₹{pcsPrice.toFixed(2)} · Pcs/Box: {ppb}</p>
+                          {product.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                          )}
+                        </div>
                             
                             <div className="flex gap-2">
                               <Button

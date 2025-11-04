@@ -16,6 +16,7 @@ interface Product {
   price: number;
   pcs_price?: number;
   box_price?: number;
+  pcs_per_box?: number;
 }
 
 interface RouteOption {
@@ -165,8 +166,9 @@ const Summary = () => {
           let soldBox = 0;
           let soldPcs = 0;
           let totalRevenue = 0;
+          const ppb = (product as any).pcs_per_box ?? 24;
           const boxPrice = (product as any).box_price ?? product.price;
-          const pcsPrice = (product as any).pcs_price ?? (((product as any).box_price ?? product.price) / 24);
+          const pcsPrice = (product as any).pcs_price ?? (((product as any).box_price ?? product.price) / ppb);
 
           if (sales) {
             sales.forEach(sale => {
@@ -187,16 +189,18 @@ const Summary = () => {
           }
 
           // Derive start-of-day using remaining + sold and approximate boxes cut for pcs
-          const ppb = (() => {
+          const ppbCalc = (() => {
+            const configured = (product as any).pcs_per_box;
+            if (typeof configured === 'number' && configured > 0) return configured;
             const boxPrice = (product as any).box_price ?? product.price;
             const pcsPrice = (product as any).pcs_price ?? (boxPrice / 24);
             const ratio = Math.round(boxPrice / (pcsPrice || 1));
             return Number.isFinite(ratio) && ratio > 0 ? ratio : 24;
           })();
 
-          const boxesCutApprox = Math.floor(((remainingPcs || 0) + (soldPcs || 0)) / ppb);
+          const boxesCutApprox = Math.floor(((remainingPcs || 0) + (soldPcs || 0)) / ppbCalc);
           const startBox = (remainingBox || 0) + (soldBox || 0) + boxesCutApprox;
-          const startPcs = (((remainingPcs || 0) + (soldPcs || 0)) % ppb);
+          const startPcs = (((remainingPcs || 0) + (soldPcs || 0)) % ppbCalc);
 
           // Only include products that were loaded or sold
           if ((startBox + startPcs) > 0 || (soldBox + soldPcs) > 0) {

@@ -283,6 +283,7 @@ const ShopBilling = () => {
   const getPcsPerBox = (productId: string): number => {
     const p = products.find(pr => pr.id === productId);
     if (!p) return 24;
+    if (typeof (p as any).pcs_per_box === 'number' && (p as any).pcs_per_box > 0) return (p as any).pcs_per_box;
     const pcs = p.pcs_price ?? ((p.box_price ?? p.price) / 24);
     const box = p.box_price ?? p.price;
     const ratio = Math.round(box / (pcs || 1));

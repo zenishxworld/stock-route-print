@@ -74,7 +74,7 @@ export async function seedDefaultProductsIfMissing(): Promise<void> {
   try {
     const { data: existing, error } = await supabase
       .from("products")
-      .select("id,name,status,price,pcs_price,box_price");
+      .select("id,name,status,price,pcs_price,box_price,pcs_per_box");
 
     if (error) throw error;
 
@@ -86,12 +86,14 @@ export async function seedDefaultProductsIfMissing(): Promise<void> {
         const key = n.trim().toLowerCase();
         const unit = UNIT_PRICE_MAP[key];
         const pcsPrice = unit?.pcs ?? stablePrice(n);
-        const boxPrice = unit?.box ?? pcsPrice * 24; // enforce 24 pcs per box
+        const ppb = 24;
+        const boxPrice = unit?.box ?? pcsPrice * ppb;
         return {
           name: n,
           price: boxPrice, // treat legacy price as box price
           pcs_price: pcsPrice,
           box_price: boxPrice,
+          pcs_per_box: ppb,
           description: null,
           status: "active",
         };
@@ -111,20 +113,21 @@ export async function seedDefaultProductsIfMissing(): Promise<void> {
         const needBox = p.box_price == null;
         if (!needPcs && !needBox) return null;
 
+        const ppb = p.pcs_per_box ?? 24;
         const resolvedPcs = needPcs
           ? (p.box_price != null
-              ? Number(p.box_price) / 24
+              ? Number(p.box_price) / (ppb || 24)
               : (p.price != null
-                  ? Number(p.price) / 24
+                  ? Number(p.price) / (ppb || 24)
                   : (unit?.pcs ?? stablePrice(p.name || ""))))
           : Number(p.pcs_price);
 
         const resolvedBox = needBox
           ? (p.pcs_price != null
-              ? Number(p.pcs_price) * 24
+              ? Number(p.pcs_price) * (ppb || 24)
               : (p.price != null
                   ? Number(p.price)
-                  : resolvedPcs * 24))
+                  : resolvedPcs * (ppb || 24)))
           : Number(p.box_price);
 
         return { id: p.id, pcs_price: resolvedPcs, box_price: resolvedBox };

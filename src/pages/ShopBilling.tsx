@@ -218,6 +218,16 @@ const ShopBilling = () => {
     return cleanup;
   }, [currentRoute, currentDate]);
 
+  // Helper to compute pcs-per-box directly from a product object during fetch.
+  // This avoids relying on the React state update timing for `products`.
+  const getPcsPerBoxFromProduct = (product: any): number => {
+    if (typeof product?.pcs_per_box === 'number' && product.pcs_per_box > 0) return product.pcs_per_box;
+    const box = product?.box_price ?? product?.price;
+    const pcs = product?.pcs_price ?? (box / 24);
+    const ratio = Math.round((box || 0) / (pcs || 1));
+    return Number.isFinite(ratio) && ratio > 0 ? ratio : 24;
+  };
+
   // --- fetchProductsAndStock remains largely the same ---
   const fetchProductsAndStock = async (route: string, date: string) => {
     try {
@@ -277,7 +287,7 @@ const ShopBilling = () => {
             });
           });
         }
-        const ppb = getPcsPerBox(product.id);
+        const ppb = getPcsPerBoxFromProduct(product);
         const startTotalPcs = (initialBox * ppb) + initialPcs;
         const soldTotalPcs = (soldBoxes * ppb) + soldPcs;
         const remainingTotalPcs = Math.max(0, startTotalPcs - soldTotalPcs);

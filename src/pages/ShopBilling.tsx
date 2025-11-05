@@ -49,6 +49,8 @@ const ShopBilling = () => {
   const [currentStockId, setCurrentStockId] = useState<string>("");
   const [shopAddress, setShopAddress] = useState("");
   const [shopPhone, setShopPhone] = useState("");
+  // Current authenticated user id to scope shop details/suggestions per account
+  const [authUserId, setAuthUserId] = useState<string>("anon");
   // Shop name suggestions state
   const [shopSuggestions, setShopSuggestions] = useState<string[]>([]);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
@@ -84,19 +86,19 @@ const ShopBilling = () => {
     return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, [currentRoute, currentDate]);
 
-  // --- Functions for shop details cache (getDetailsKey, saveShopDetailsToLocal, getShopDetailsFromLocal) remain the same ---
-  const getDetailsKey = (_routeId?: string) => `shopDetails:global`;
-  const saveShopDetailsToLocal = (routeId: string, name: string, address?: string, phone?: string) => {
+  // --- Functions for shop details cache (now scoped per account id) ---
+  const getDetailsKey = () => `shopDetails:${authUserId || 'anon'}`;
+  const saveShopDetailsToLocal = (_routeId: string, name: string, address?: string, phone?: string) => {
     if (!name) return;
-    const key = getDetailsKey(routeId);
+    const key = getDetailsKey();
     const existing = JSON.parse(localStorage.getItem(key) || '{}');
     const map = existing && typeof existing === 'object' ? existing : {};
     map[name] = { address: address || '', phone: phone || '' };
     localStorage.setItem(key, JSON.stringify(map));
   };
-  const getShopDetailsFromLocal = (routeId: string, name: string): { address?: string; phone?: string } | undefined => {
+  const getShopDetailsFromLocal = (_routeId: string, name: string): { address?: string; phone?: string } | undefined => {
     if (!name) return undefined;
-    const key = getDetailsKey(routeId);
+    const key = getDetailsKey();
     const existing = JSON.parse(localStorage.getItem(key) || '{}');
     const map = existing && typeof existing === 'object' ? existing : {};
     return map[name];
@@ -118,23 +120,23 @@ const ShopBilling = () => {
     return [];
   };
 
-  // --- Functions for shop suggestions (loadShopSuggestions, saveShopNameToLocal, removeShopName) remain the same ---
-  const loadShopSuggestions = async (routeId: string) => {
+  // --- Functions for shop suggestions (now scoped per account id and across all routes) ---
+  const loadShopSuggestions = async (_routeId: string) => {
     try {
-      const localKey = `shopNames:${routeId}`;
-      const hiddenKey = `shopNames:hidden:${routeId}`;
+      const localKey = `shopNames:${authUserId || 'anon'}`;
+      const hiddenKey = `shopNames:hidden:${authUserId || 'anon'}`;
       const local = JSON.parse(localStorage.getItem(localKey) || '[]');
       const hidden = JSON.parse(localStorage.getItem(hiddenKey) || '[]');
       const namesSet = new Set<string>(Array.isArray(local) ? local : []);
       const hiddenSet = new Set<string>(Array.isArray(hidden) ? hidden : []);
-      const detailsKey = getDetailsKey(routeId);
+      const detailsKey = getDetailsKey();
       const existingDetails = JSON.parse(localStorage.getItem(detailsKey) || '{}');
       const detailsMap: Record<string, { address?: string; phone?: string }> = existingDetails && typeof existingDetails === 'object' ? existingDetails : {};
 
       const { data, error } = await supabase
         .from("sales")
         .select("shop_name, products_sold")
-        .eq("route_id", routeId);
+        .order('created_at', { ascending: false });
 
       if (!error && data) {
         data.forEach((row: any) => {
@@ -161,8 +163,8 @@ const ShopBilling = () => {
       console.warn('Failed to load shop suggestions', err);
     }
   };
-   const saveShopNameToLocal = (routeId: string, name: string) => {
-    const localKey = `shopNames:${routeId}`;
+   const saveShopNameToLocal = (_routeId: string, name: string) => {
+    const localKey = `shopNames:${authUserId || 'anon'}`;
     const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
     let updated: string[] = Array.isArray(existing) ? existing : [];
     if (!updated.includes(name)) {
@@ -171,9 +173,9 @@ const ShopBilling = () => {
     }
     setShopSuggestions(prev => (prev.includes(name) ? prev : [name, ...prev]));
   };
-  const removeShopName = (routeId: string, name: string) => {
-    const localKey = `shopNames:${routeId}`;
-    const hiddenKey = `shopNames:hidden:${routeId}`;
+  const removeShopName = (_routeId: string, name: string) => {
+    const localKey = `shopNames:${authUserId || 'anon'}`;
+    const hiddenKey = `shopNames:hidden:${authUserId || 'anon'}`;
     const existingLocal = JSON.parse(localStorage.getItem(localKey) || '[]');
     let updatedLocal: string[] = Array.isArray(existingLocal) ? existingLocal : [];
     updatedLocal = updatedLocal.filter(n => n !== name);
@@ -200,10 +202,20 @@ const ShopBilling = () => {
       return;
     }
 
+    // Get current authenticated user id to scope suggestions/details per account
+    supabase.auth.getUser().then(({ data }) => {
+      const uid = data?.user?.id || 'anon';
+      setAuthUserId(uid);
+      // After we know user id, load suggestions across all their routes
+      loadShopSuggestions(route);
+    }).catch(() => {
+      setAuthUserId('anon');
+      loadShopSuggestions(route);
+    });
+
     setCurrentRoute(route);
     setCurrentDate(date);
     fetchProductsAndStock(route, date);
-    loadShopSuggestions(route);
   }, [navigate, toast]); // Added navigate and toast dependencies
 
   useEffect(() => {
@@ -495,7 +507,7 @@ const ShopBilling = () => {
     };
     setPrintSnapshot(snapshot);
     const saleData = {
-      auth_user_id: "00000000-0000-0000-0000-000000000000",
+      auth_user_id: authUserId || "00000000-0000-0000-0000-000000000000",
       shop_name: shopName,
       date: currentDate,
       products_sold: {

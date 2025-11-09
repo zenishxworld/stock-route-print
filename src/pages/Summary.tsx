@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { mapRouteName, shouldDisplayRoute } from "@/lib/routeUtils";
-import { listenForProductUpdates } from "@/lib/productSync";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Label } from "../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { useToast } from "../hooks/use-toast";
+import { supabase } from "../integrations/supabase/client";
+import { mapRouteName, shouldDisplayRoute } from "../lib/routeUtils";
+import { listenForProductUpdates } from "../lib/productSync";
 import { ArrowLeft, BarChart3, Printer, Calendar, TrendingUp, Package, DollarSign } from "lucide-react";
 
 interface Product {
@@ -74,6 +75,25 @@ const Summary = () => {
   const [summaryData, setSummaryData] = useState<SummaryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+
+  // Memoize totals calculation to avoid re-calculating on every render
+  const { totals, grandTotal } = useMemo(() => {
+    const t = summaryData.reduce(
+      (acc, item) => {
+        acc.startBox += item.startBox;
+        acc.startPcs += item.startPcs;
+        acc.soldBox += item.soldBox;
+        acc.soldPcs += item.soldPcs;
+        acc.remainingBox += item.remainingBox;
+        acc.remainingPcs += item.remainingPcs;
+        return acc;
+      },
+      { startBox: 0, startPcs: 0, soldBox: 0, soldPcs: 0, remainingBox: 0, remainingPcs: 0 }
+    );
+    const gt = summaryData.reduce((sum, item) => sum + item.totalRevenue, 0);
+    return { totals: t, grandTotal: gt };
+  }, [summaryData]);
+
 
   useEffect(() => {
     fetchRoutes();
@@ -249,37 +269,71 @@ const Summary = () => {
     window.print();
   };
 
-  const calculateGrandTotal = () => {
-    return summaryData.reduce((sum, item) => sum + item.totalRevenue, 0);
-  };
-
-  const getTotals = () => {
-    const totals = summaryData.reduce(
-      (acc, item) => {
-        acc.startBox += item.startBox;
-        acc.startPcs += item.startPcs;
-        acc.soldBox += item.soldBox;
-        acc.soldPcs += item.soldPcs;
-        acc.remainingBox += item.remainingBox;
-        acc.remainingPcs += item.remainingPcs;
-        return acc;
-      },
-      { startBox: 0, startPcs: 0, soldBox: 0, soldPcs: 0, remainingBox: 0, remainingPcs: 0 }
-    );
-    return totals;
-  };
-
-  const calculateTotalStock = () => {
-    const t = getTotals();
-    return { box: t.startBox, pcs: t.startPcs };
-  };
-
   const getRouteName = () => {
     const route = routes.find(r => r.id === selectedRoute);
     if (!route) return "Unknown Route";
     
     // route names are already mapped in fetchRoutes
     return route.name;
+  };
+  
+  // Helper function to build the receipt content string
+  const getReceiptContent = () => {
+    const t = totals;
+    const grandTotalStr = grandTotal.toFixed(2);
+    const generatedDate = new Date().toLocaleString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    }).replace(',', ''); // Remove comma for cleaner output
+    
+    const routeName = getRouteName();
+    // Format date as DD-MM-YYYY to match image
+    const formattedDate = new Date(selectedDate).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    }).replace(/\//g, '-');
+
+    // 32-character width for 58mm printer
+    let content = "";
+    content += "================================\n";
+    content += "       COLD DRINK SALES       \n"; // Centered
+    content += "================================\n";
+    content += `Date  : ${formattedDate}\n`;
+    content += `Route : ${routeName}\n`;
+    content += "--------------------------------\n";
+    content += `Start : ${t.startBox}B | ${t.startPcs}p\n`;
+    content += `Sold  : ${t.soldBox}B | ${t.soldPcs}p\n`;
+    content += `Left  : ${t.remainingBox}B | ${t.remainingPcs}p\n`;
+    content += `Total Revenue: ₹${grandTotalStr}\n`;
+    content += "--------------------------------\n";
+    // Header fits exactly 32 characters: Item(17) + Sold(8) + Left(7)
+    content += "Item             S(B|p) L(B|p)\n";
+    content += "--------------------------------\n";
+
+    summaryData.forEach(item => {
+        // Keep line width to 32 chars: 17 + 8 + 7 = 32
+        const name = item.productName.substring(0, 17).padEnd(17, ' ');
+        const sold = `${item.soldBox}|${item.soldPcs}`.padEnd(8, ' ');
+        const left = `${item.remainingBox}|${item.remainingPcs}`.padEnd(7, ' ');
+        content += `${name}${sold}${left}\n`;
+    });
+
+    content += "--------------------------------\n";
+    content += `Totals Sold  : ${t.soldBox}B | ${t.soldPcs}p\n`;
+    content += `Totals Left  : ${t.remainingBox}B | ${t.remainingPcs}p\n`;
+    content += "--------------------------------\n";
+    content += `Grand Total: ₹${grandTotalStr}\n`;
+    content += "--------------------------------\n";
+    content += `Generated: ${generatedDate}\n`;
+    content += "Powered by ApexDeploy\n";
+    content += "================================\n";
+    
+    return content;
   };
 
   return (
@@ -396,9 +450,9 @@ const Summary = () => {
 
             {/* Printable Summary Report */}
             <Card className="border-0 shadow-strong print:shadow-none">
-              <CardContent className="p-4 sm:p-8 print:p-4">
+              <CardContent className="p-4 sm:p-8 print:p-0">
                 {/* Report Header */}
-                <div className="text-center mb-6 print:mb-4">
+                <div className="text-center mb-6 print:hidden">
                   <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-xl">Cold Drink Sales</h1>
                   <p className="text-base sm:text-lg font-semibold text-muted-foreground print:text-sm">Day Summary Report</p>
                   <div className="mt-3 space-y-1 text-sm text-muted-foreground print:text-xs print:mt-2">
@@ -413,45 +467,38 @@ const Summary = () => {
 
                 {/* Stats Cards - Hidden on print */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6 print:hidden">
-                  {(() => {
-                    const t = getTotals();
-                    return (
-                      <>
-                        <Card className="border border-primary/20 bg-primary-light/10">
-                          <CardContent className="p-3 sm:p-4 text-center">
-                            <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
-                            <p className="text-xs sm:text-sm text-muted-foreground">Total Stock</p>
-                            <p className="text-lg sm:text-xl font-bold text-primary">{t.startBox} Box | {t.startPcs} pcs</p>
-                          </CardContent>
-                        </Card>
-                        <Card className="border border-primary/20 bg-primary-light/10">
-                          <CardContent className="p-3 sm:p-4 text-center">
-                            <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
-                            <p className="text-xs sm:text-sm text-muted-foreground">Sold</p>
-                            <p className="text-lg sm:text-xl font-bold text-primary">{t.soldBox} Box | {t.soldPcs} pcs</p>
-                          </CardContent>
-                        </Card>
-                        <Card className="border border-warning/20 bg-warning-light/10">
-                          <CardContent className="p-3 sm:p-4 text-center">
-                            <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-warning" />
-                            <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
-                            <p className="text-lg sm:text-xl font-bold text-warning">{t.remainingBox} Box | {t.remainingPcs} pcs</p>
-                          </CardContent>
-                        </Card>
-                        <Card className="border border-success-green/20 bg-success-green-light/10">
-                          <CardContent className="p-3 sm:p-4 text-center">
-                            <DollarSign className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-success-green" />
-                            <p className="text-xs sm:text-sm text-muted-foreground">Revenue</p>
-                            <p className="text-lg sm:text-xl font-bold text-success-green truncate max-w-full overflow-hidden">₹{calculateGrandTotal().toFixed(2)}</p>
-                          </CardContent>
-                        </Card>
-                      </>
-                    );
-                  })()}
+                  <Card className="border border-primary/20 bg-primary-light/10">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
+                      <p className="text-xs sm:text-sm text-muted-foreground">Total Stock</p>
+                      <p className="text-lg sm:text-xl font-bold text-primary">{totals.startBox} Box | {totals.startPcs} pcs</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border border-primary/20 bg-primary-light/10">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-primary" />
+                      <p className="text-xs sm:text-sm text-muted-foreground">Sold</p>
+                      <p className="text-lg sm:text-xl font-bold text-primary">{totals.soldBox} Box | {totals.soldPcs} pcs</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border border-warning/20 bg-warning-light/10">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <Package className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-warning" />
+                      <p className="text-xs sm:text-sm text-muted-foreground">Remaining</p>
+                      <p className="text-lg sm:text-xl font-bold text-warning">{totals.remainingBox} Box | {totals.remainingPcs} pcs</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border border-success-green/20 bg-success-green-light/10">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <DollarSign className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 text-success-green" />
+                      <p className="text-xs sm:text-sm text-muted-foreground">Revenue</p>
+                      <p className="text-lg sm:text-xl font-bold text-success-green truncate max-w-full overflow-hidden">₹{grandTotal.toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {/* Summary Table (Desktop & Print) */}
-                <div className="mb-6 print:mb-4 overflow-x-auto hidden sm:block print:block">
+                {/* Summary Table (Desktop) - hidden on print */}
+                <div className="mb-6 print:mb-4 overflow-x-auto hidden sm:block print:hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b-2 border-foreground">
@@ -509,27 +556,23 @@ const Summary = () => {
                 </div>
 
                 {/* Totals Section */}
-                <div className="border-t-2 border-foreground pt-4 print:pt-3 space-y-2">
+                <div className="border-t-2 border-foreground pt-4 print:pt-3 space-y-2 print:hidden">
                   <div className="flex justify-between items-center text-sm sm:text-base print:text-xs">
                     <span className="font-semibold text-muted-foreground">Total Items Sold:</span>
-                    {(() => { const t = getTotals(); return (
-                      <span className="font-bold text-primary">{t.soldBox} Box | {t.soldPcs} pcs</span>
-                    ); })()}
+                    <span className="font-bold text-primary">{totals.soldBox} Box | {totals.soldPcs} pcs</span>
                   </div>
                   <div className="flex justify-between items-center text-sm sm:text-base print:text-xs">
                     <span className="font-semibold text-muted-foreground">Total Remaining:</span>
-                    {(() => { const t = getTotals(); return (
-                      <span className="font-bold text-warning">{t.remainingBox} Box | {t.remainingPcs} pcs</span>
-                    ); })()}
+                    <span className="font-bold text-warning">{totals.remainingBox} Box | {totals.remainingPcs} pcs</span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-dashed flex-wrap gap-2 sm:flex-nowrap min-w-0">
                     <span className="text-lg sm:text-xl font-bold text-foreground print:text-base">GRAND TOTAL:</span>
-                    <span className="text-2xl sm:text-3xl font-bold text-success-green print:text-xl truncate max-w-[60%] sm:max-w-none overflow-hidden text-right">₹{calculateGrandTotal().toFixed(2)}</span>
+                    <span className="text-2xl sm:text-3xl font-bold text-success-green print:text-xl truncate max-w-[60%] sm:max-w-none overflow-hidden text-right">₹{grandTotal.toFixed(2)}</span>
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div className="mt-8 pt-4 border-t border-dashed text-center print:mt-6 print:pt-3">
+                <div className="mt-8 pt-4 border-t border-dashed text-center print:hidden">
                   <p className="text-sm font-semibold text-foreground print:text-xs">End of Day Report</p>
                   <p className="text-xs text-muted-foreground mt-1 print:text-[10px]">
                     Generated on {new Date().toLocaleString('en-IN')}
@@ -541,92 +584,68 @@ const Summary = () => {
         )}
       </main>
 
-      {/* Print Styles */}
+      {/* Top-level print container (rendered into document.body via portal) */}
+      {showSummary && createPortal(
+        <div 
+          id="print-summary-receipt"
+          // These inline styles are a fallback, the @media print CSS is primary
+          style={{ 
+            whiteSpace: 'pre', 
+            fontFamily: '"Courier New", Courier, monospace', 
+            fontSize: '11px', 
+            lineHeight: '1.3',
+            color: '#000',
+            display: 'none' // Hidden by default, only shown by print CSS
+          }}
+        >
+          {getReceiptContent()}
+        </div>,
+        document.body
+      )}
+
+      {/* Print Styles for 58mm receipt */}
       <style>{`
         @media print {
-          body {
-            margin: 0;
-            padding: 0;
-          }
-          
+          /* Hide everything except the receipt container */
+          body > *:not(#print-summary-receipt) { display: none !important; }
+          #print-summary-receipt { display: block !important; }
+
           @page {
-            size: A4;
-            margin: 15mm;
+            size: 58mm auto;
+            margin: 2mm; /* Add a little margin */
           }
           
-          .print\\:hidden {
-            display: none !important;
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background-color: #fff !important;
+            width: 58mm !important;
           }
           
-          .print\\:shadow-none {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color: #000 !important; /* Ensure all text is black */
+            background: #fff !important; /* Ensure background is white */
             box-shadow: none !important;
+            border-radius: 0 !important;
           }
-          
-          .print\\:p-4 {
-            padding: 1rem !important;
-          }
-          
-          .print\\:mb-4 {
-            margin-bottom: 1rem !important;
-          }
-          
-          .print\\:mb-2 {
-            margin-bottom: 0.5rem !important;
-          }
-          
-          .print\\:mt-2 {
-            margin-top: 0.5rem !important;
-          }
-          
-          .print\\:mt-6 {
-            margin-top: 1.5rem !important;
-          }
-          
-          .print\\:pt-3 {
-            padding-top: 0.75rem !important;
-          }
-          
-          .print\\:py-1 {
-            padding-top: 0.25rem !important;
-            padding-bottom: 0.25rem !important;
-          }
-          
-          .print\\:py-2 {
-            padding-top: 0.5rem !important;
-            padding-bottom: 0.5rem !important;
-          }
-          
-          .print\\:text-xs {
-            font-size: 0.75rem !important;
-            line-height: 1rem !important;
-          }
-          
-          .print\\:text-sm {
-            font-size: 0.875rem !important;
-            line-height: 1.25rem !important;
-          }
-          
-          .print\\:text-base {
-            font-size: 1rem !important;
-            line-height: 1.5rem !important;
-          }
-          
-          .print\\:text-xl {
-            font-size: 1.25rem !important;
-            line-height: 1.75rem !important;
-          }
-          
-          .print\\:text-\\[10px\\] {
-            font-size: 10px !important;
-          }
-          
-          table {
-            page-break-inside: auto;
-          }
-          
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
+
+          #print-summary-receipt {
+            display: block !important;
+            width: 100% !important; /* Use 100% of the page width */
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important; /* Padding is on @page */
+            font-family: 'Courier New', Courier, monospace !important; /* Force monospace */
+            font-size: 12px !important; /* Readable size for 58mm */
+            font-weight: 700 !important; /* Bold for thermal print readability */
+            line-height: 1.3 !important;
+            white-space: pre !important; /* CRITICAL: Respect whitespace and newlines */
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            box-sizing: border-box !important;
           }
         }
       `}</style>

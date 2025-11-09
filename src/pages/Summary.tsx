@@ -301,7 +301,7 @@ const Summary = () => {
     // 32-character width for 58mm printer
     let content = "";
     content += "================================\n";
-    content += "       COLD DRINK SALES       \n"; // Centered
+    content += "       FRESH SODA SALES       \n"; // Centered
     content += "================================\n";
     content += `Date  : ${formattedDate}\n`;
     content += `Route : ${routeName}\n`;
@@ -311,16 +311,16 @@ const Summary = () => {
     content += `Left  : ${t.remainingBox}B | ${t.remainingPcs}p\n`;
     content += `Total Revenue: ₹${grandTotalStr}\n`;
     content += "--------------------------------\n";
-    // Header fits exactly 32 characters: Item(17) + Sold(8) + Left(7)
-    content += "Item             S(B|p) L(B|p)\n";
-    content += "--------------------------------\n";
+    // Header fits exactly 32 characters with vertical separators: 15 + 1 + 8 + 1 + 7
+    content += `${'Item'.padEnd(15, ' ')}|${'S(B|p)'.padEnd(8, ' ')}|${'L(B|p)'.padEnd(7, ' ')}\n`;
+    content += "---------------+--------+-------\n";
 
     summaryData.forEach(item => {
-        // Keep line width to 32 chars: 17 + 8 + 7 = 32
-        const name = item.productName.substring(0, 17).padEnd(17, ' ');
+        // Keep line width to 32 chars with separators: 15 + 1 + 8 + 1 + 7 = 32
+        const name = item.productName.substring(0, 15).padEnd(15, ' ');
         const sold = `${item.soldBox}|${item.soldPcs}`.padEnd(8, ' ');
         const left = `${item.remainingBox}|${item.remainingPcs}`.padEnd(7, ' ');
-        content += `${name}${sold}${left}\n`;
+        content += `${name}|${sold}|${left}\n`;
     });
 
     content += "--------------------------------\n";
@@ -330,7 +330,7 @@ const Summary = () => {
     content += `Grand Total: ₹${grandTotalStr}\n`;
     content += "--------------------------------\n";
     content += `Generated: ${generatedDate}\n`;
-    content += "Powered by ApexDeploy\n";
+    content += "Powered by apexdeploy.in\n";
     content += "================================\n";
     
     return content;
@@ -453,7 +453,7 @@ const Summary = () => {
               <CardContent className="p-4 sm:p-8 print:p-0">
                 {/* Report Header */}
                 <div className="text-center mb-6 print:hidden">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-xl">Cold Drink Sales</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground print:text-xl">Fresh Soda Sales</h1>
                   <p className="text-base sm:text-lg font-semibold text-muted-foreground print:text-sm">Day Summary Report</p>
                   <div className="mt-3 space-y-1 text-sm text-muted-foreground print:text-xs print:mt-2">
                     <p><strong>Date:</strong> {new Date(selectedDate).toLocaleDateString('en-IN', { 

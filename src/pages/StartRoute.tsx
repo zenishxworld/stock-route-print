@@ -374,7 +374,13 @@ const StartRoute = () => {
     }
   };
 
-  const totalProducts = stock.reduce((sum, item) => sum + item.quantity, 0);
+  const totalBoxes = stock
+    .filter((item) => item.unit === 'box')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  const totalPcs = stock
+    .filter((item) => item.unit === 'pcs')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  const totalProducts = totalBoxes + totalPcs;
 
   const resetAddProductState = () => {
     setProductQuery("");
@@ -590,7 +596,9 @@ const StartRoute = () => {
                     Initial Stock
                   </Label>
                   <div className="text-xs sm:text-sm text-muted-foreground">
-                    Total: <span className="font-semibold text-primary">{totalProducts}</span>
+                    Boxes: <span className="font-semibold text-primary">{totalBoxes}</span>
+                    <span className="mx-1">|</span>
+                    Pcs: <span className="font-semibold text-primary">{totalPcs}</span>
                   </div>
                 </div>
 

@@ -225,7 +225,7 @@ const BillHistory = () => {
 
         {/* Bill details dialog */}
         <Dialog open={!!selectedSale} onOpenChange={() => setSelectedSale(null)}>
-          <DialogContent className="max-w-2xl print:shadow-none print:border-0 print:bg-white">
+          <DialogContent className="max-w-2xl sm:max-w-3xl max-h-[85vh] overflow-y-auto overscroll-contain p-0 print:shadow-none print:border-0 print:bg-white">
             {/* Header inside dialog - hide when printing */}
             <DialogHeader className="print:hidden">
               <DialogTitle>Bill Details</DialogTitle>
@@ -233,7 +233,7 @@ const BillHistory = () => {
             </DialogHeader>
 
             {selectedSale && (
-              <div className="space-y-4">
+              <div className="space-y-4 pb-safe">
                 {/* Top info and actions - hide on print */}
                 <div className="flex items-center justify-between mb-3 print:hidden">
                   <div>
@@ -294,22 +294,22 @@ const BillHistory = () => {
 
                       {/* Products Table */}
                       <div className="mb-6 print:mb-3">
-                        <table className="w-full">
+                        <table className="w-full table-fixed">
                           <thead>
                             <tr className="border-b border-foreground border-dashed">
-                              <th className="text-left py-2 font-bold text-foreground print:text-[11px] print:py-1">Item</th>
-                              <th className="text-center py-2 font-bold text-foreground print:text-[11px] print:py-1">Qty</th>
-                              <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Rate</th>
-                              <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1">Amt</th>
+                              <th className="text-left py-2 font-bold text-foreground print:text-[11px] print:py-1 w-[52%]">Item</th>
+                              <th className="text-center py-2 font-bold text-foreground print:text-[11px] print:py-1 w-[14%]">Qty</th>
+                              <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1 w-[16%]">Rate</th>
+                              <th className="text-right py-2 font-bold text-foreground print:text-[11px] print:py-1 w-[18%]">Amt</th>
                             </tr>
                           </thead>
                           <tbody>
                             {(Array.isArray(selectedSale.products_sold) ? selectedSale.products_sold : (selectedSale.products_sold?.items || [])).map((item: any, index: number) => (
                               <tr key={index} className="border-b border-border">
-                                <td className="py-3 text-foreground print:text-[11px] print:py-1">{item.productName || item.name}</td>
-                                <td className="py-3 text-center text-foreground print:text-[11px] print:py-1">{item.quantity} {item.unit === 'box' ? 'Box' : item.unit === 'pcs' ? 'pcs' : ''}</td>
-                                <td className="py-3 text-right text-foreground print:text-[11px] print:py-1">₹{(item.price ?? 0).toFixed(2)}</td>
-                                <td className="py-3 text-right font-semibold text-foreground print:text-[11px] print:py-1">₹{(item.total ?? (item.quantity * (item.price ?? 0))).toFixed(2)}</td>
+                                <td className="py-3 text-foreground print:text-[11px] print:py-1 break-words w-[52%]">{item.productName || item.name}</td>
+                                <td className="py-3 text-center text-foreground print:text-[11px] print:py-1 w-[14%]">{item.quantity} {item.unit === 'box' ? 'Box' : item.unit === 'pcs' ? 'pcs' : ''}</td>
+                                <td className="py-3 text-right text-foreground print:text-[11px] print:py-1 w-[16%]">₹{(item.price ?? 0).toFixed(2)}</td>
+                                <td className="py-3 text-right font-semibold text-foreground print:text-[11px] print:py-1 w-[18%]">₹{(item.total ?? (item.quantity * (item.price ?? 0))).toFixed(2)}</td>
                               </tr>
                             ))}
                           </tbody>

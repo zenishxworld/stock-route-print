@@ -49,15 +49,21 @@ const BillHistory = () => {
     const loadRoutes = async () => {
       const { data, error } = await supabase
         .from("routes")
-        .select("id,name")
-        .eq("is_active", true);
+        .select("id,name,is_active"); // Fetch is_active to sort
 
       if (error) {
         console.warn("Failed to load routes for mapping", error);
         return;
       }
-      const filtered = (data || []).filter((r: any) => shouldDisplayRoute(r.name));
-      const mapped = filtered.map((r: any) => ({ id: r.id, name: r.name, displayName: mapRouteName(r.name) }));
+
+      const distinctRoutes = (data || []).filter((r: any) => shouldDisplayRoute(r.name));
+      // Sort: Active routes first, then by name
+      distinctRoutes.sort((a: any, b: any) => {
+        if (a.is_active === b.is_active) return a.name.localeCompare(b.name);
+        return a.is_active ? -1 : 1;
+      });
+
+      const mapped = distinctRoutes.map((r: any) => ({ id: r.id, name: r.name, displayName: mapRouteName(r.name) }));
       setRoutes(mapped);
       const map: Record<string, string> = {};
       mapped.forEach((r) => (map[r.id] = r.displayName));
@@ -156,18 +162,18 @@ const BillHistory = () => {
                 <Label id="route-filter-label" className="text-sm sm:text-base font-semibold">Filter by Route (optional)</Label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
-                    <Select value={filterRouteId} onValueChange={(v) => setFilterRouteId(v)}>
+                    <Select value={filterRouteId || "all"} onValueChange={(v) => setFilterRouteId(v === "all" ? "" : v)}>
                       <SelectTrigger className="h-10 w-full" aria-labelledby="route-filter-label">
                         <SelectValue placeholder="All Routes" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="all" className="font-semibold">All Routes</SelectItem>
                         {routes.map((r) => (
                           <SelectItem key={r.id} value={r.id}>{r.displayName}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button variant="outline" size="sm" className="h-10" onClick={() => setFilterRouteId("")}>Clear</Button>
                 </div>
               </div>
               <div className="space-y-2">

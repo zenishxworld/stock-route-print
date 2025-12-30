@@ -115,7 +115,7 @@ const ShopBilling = () => {
         const parsed = JSON.parse(ps);
         if (Array.isArray(parsed)) return parsed;
         if (Array.isArray(parsed?.items)) return parsed.items;
-      } catch {}
+      } catch { }
     }
     return [];
   };
@@ -163,7 +163,7 @@ const ShopBilling = () => {
       console.warn('Failed to load shop suggestions', err);
     }
   };
-   const saveShopNameToLocal = (_routeId: string, name: string) => {
+  const saveShopNameToLocal = (_routeId: string, name: string) => {
     const localKey = `shopNames:${authUserId || 'anon'}`;
     const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
     let updated: string[] = Array.isArray(existing) ? existing : [];
@@ -397,7 +397,7 @@ const ShopBilling = () => {
   };
 
   // --- Quick-add dialog helpers remain the same ---
-   const resetAddProductState = () => {
+  const resetAddProductState = () => {
     setProductQuery("");
     setSelectedProduct(null);
     setUnitMode('box');
@@ -459,7 +459,7 @@ const ShopBilling = () => {
 
 
   // --- calculateTotal, getSoldItems, isValidPhone, isValidForBilling remain the same ---
-   const calculateTotal = () => saleItems.reduce((sum, item) => sum + item.total, 0);
+  const calculateTotal = () => saleItems.reduce((sum, item) => sum + item.total, 0);
   const getSoldItems = () => saleItems.filter(item => item.quantity > 0);
   const isValidPhone = (p: string) => /^\d{10}$/.test(p);
   const isValidForBilling = () => {
@@ -607,7 +607,7 @@ const ShopBilling = () => {
         {!showBillPreviewUI ? (
           // Billing Form - Remains the same structure
           <Card className="border-0 shadow-strong">
-             <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
+            <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
               <CardTitle className="text-xl sm:text-2xl font-bold">New Sale</CardTitle>
               <CardDescription className="text-sm sm:text-base">
                 Enter shop details and select products
@@ -621,10 +621,10 @@ const ShopBilling = () => {
               )}
             </CardHeader>
 
-             <CardContent className="px-4 sm:px-6">
+            <CardContent className="px-4 sm:px-6">
               <div className="space-y-6 sm:space-y-8">
-                 {/* Shop Name Input with suggestions - remains same */}
-                 <div className="space-y-2">
+                {/* Shop Name Input with suggestions - remains same */}
+                <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
                     <Store className="w-4 h-4" />
                     Shop Name
@@ -686,14 +686,14 @@ const ShopBilling = () => {
                       </div>
                     )}
                   </div>
-                 </div>
-                 {/* Address Input - remains same */}
-                 <div className="space-y-2">
-                   <Label className="text-sm sm:text-base font-semibold flex items-center gap-2"><MapPin className="w-4 h-4" /> Address / Village</Label>
-                   <Input type="text" placeholder="Enter address or village name" value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} className="h-11 sm:h-10 text-base" />
-                 </div>
-                 {/* Phone Input - remains same */}
-                 <div className="space-y-2">
+                </div>
+                {/* Address Input - remains same */}
+                <div className="space-y-2">
+                  <Label className="text-sm sm:text-base font-semibold flex items-center gap-2"><MapPin className="w-4 h-4" /> Address / Village</Label>
+                  <Input type="text" placeholder="Enter address or village name" value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} className="h-11 sm:h-10 text-base" />
+                </div>
+                {/* Phone Input - remains same */}
+                <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold flex items-center gap-2"><Phone className="w-4 h-4" /> Phone Number</Label>
                   <Input type="tel" inputMode="numeric" placeholder="Enter 10-digit mobile number" value={shopPhone}
                     onChange={(e) => { const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10); setShopPhone(digitsOnly); }}
@@ -703,7 +703,7 @@ const ShopBilling = () => {
                 </div>
 
                 {/* Products Selection Section - remains same structure */}
-                 <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-base sm:text-lg font-semibold flex items-center gap-2"><ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" /> Select Products</Label>
                     <div className="flex items-center gap-2">
@@ -711,8 +711,8 @@ const ShopBilling = () => {
                       <Button variant="default" size="sm" onClick={() => setShowAddProductDialog(true)} className="h-9" title="Quick add product">Add Product</Button>
                     </div>
                   </div>
-                   {/* Quick Add Product Dialog - remains same */}
-                   <Dialog open={showAddProductDialog} onOpenChange={setShowAddProductDialog}>
+                  {/* Quick Add Product Dialog - remains same */}
+                  <Dialog open={showAddProductDialog} onOpenChange={setShowAddProductDialog}>
                     <DialogContent className="sm:max-w-md">
                       <DialogHeader><DialogTitle>Add Product</DialogTitle><DialogDescription>Search and quickly add a product with unit mode.</DialogDescription></DialogHeader>
                       <div className="space-y-4">
@@ -747,9 +747,9 @@ const ShopBilling = () => {
                       </div>
                       <DialogFooter className="sm:justify-end"><Button variant="ghost" onClick={() => { setShowAddProductDialog(false); resetAddProductState(); }}>Cancel</Button><Button onClick={handleAddProductToSale} disabled={!selectedProduct || tempQuantity <= 0}>Add</Button></DialogFooter>
                     </DialogContent>
-                   </Dialog>
-                   {/* Quick Edit Added Items - remains same */}
-                   <div className="space-y-2">
+                  </Dialog>
+                  {/* Quick Edit Added Items - remains same */}
+                  <div className="space-y-2">
                     {saleItems.filter(i => i.quantity > 0).length > 0 && (
                       <div className="rounded-md border p-3">
                         <div className="text-sm font-semibold mb-2">Added Items</div>
@@ -772,8 +772,8 @@ const ShopBilling = () => {
                       </div>
                     )}
                   </div>
-                   {/* Product Cards List - remains same */}
-                   <div className="grid gap-3 sm:gap-4">
+                  {/* Product Cards List - remains same */}
+                  <div className="grid gap-3 sm:gap-4">
                     {(products.map((prod) => ({ prod, avail: (saleItems.find(s => s.productId === prod.id && s.unit === 'box')?.availableStock || 0) + (saleItems.find(s => s.productId === prod.id && s.unit === 'pcs')?.availableStock || 0) })).filter(item => item.avail > 0).map(x => x.prod)).map((product) => {
                       const boxItem = saleItems.find(s => s.productId === product.id && s.unit === 'box'); const pcsItem = saleItems.find(s => s.productId === product.id && s.unit === 'pcs'); const boxAvail = boxItem?.availableStock || 0; const pcsAvail = pcsItem?.availableStock || 0; const boxQty = boxItem?.quantity || 0; const pcsQty = pcsItem?.quantity || 0; const boxPrice = boxItem?.price ?? (product.box_price ?? product.price); const pcsPrice = pcsItem?.price ?? (product.pcs_price ?? ((product.box_price ?? product.price ?? 0) / 24)); const availableStock = boxAvail + pcsAvail; const lineTotal = (boxItem?.total || 0) + (pcsItem?.total || 0);
                       return (
@@ -788,12 +788,14 @@ const ShopBilling = () => {
                               </div>
                               <div className="space-y-2"> {/* Pcs */}
                                 <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground">Unit: 1 pcs</span><span className="text-xs text-muted-foreground">Avail: {pcsAvail} pcs</span></div>
-                                {(() => { const ppb = getPcsPerBox(product.id); const maxPcsCapacity = pcsAvail + boxAvail * ppb; return (
-                                  <>
-                                    <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={pcsPrice} onChange={(e) => { const v = e.target.value; const num = v === '' ? 0 : parseFloat(v); updatePrice(product.id, 'pcs', Number.isFinite(num) ? num : 0); }} className="h-9 text-sm" min="0" step="0.01" disabled={maxPcsCapacity === 0} placeholder={`${product.pcs_price ?? ((product.box_price ?? product.price) / 24)}`} /></div>
-                                    <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Quantity (pcs)</Label><div className="flex items-center gap-2"><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', -1)} disabled={pcsQty === 0} className="h-9 w-9"><Minus className="w-4 h-4" /></Button><Input type="text" value={String(pcsQty)} onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const newQuantity = Math.max(0, parseInt(sanitized) || 0); setQuantityDirect(product.id, 'pcs', newQuantity); }} className="w-16 text-center text-sm h-9" inputMode="numeric" pattern="[0-9]*" disabled={maxPcsCapacity === 0} /><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', 1)} disabled={pcsQty >= maxPcsCapacity || maxPcsCapacity === 0} className="h-9 w-9"><Plus className="w-4 h-4" /></Button></div></div>
-                                  </>
-                                ); })()}
+                                {(() => {
+                                  const ppb = getPcsPerBox(product.id); const maxPcsCapacity = pcsAvail + boxAvail * ppb; return (
+                                    <>
+                                      <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Price (₹)</Label><Input type="number" value={pcsPrice} onChange={(e) => { const v = e.target.value; const num = v === '' ? 0 : parseFloat(v); updatePrice(product.id, 'pcs', Number.isFinite(num) ? num : 0); }} className="h-9 text-sm" min="0" step="0.01" disabled={maxPcsCapacity === 0} placeholder={`${product.pcs_price ?? ((product.box_price ?? product.price) / 24)}`} /></div>
+                                      <div className="space-y-1"><Label className="text-xs font-medium text-muted-foreground">Quantity (pcs)</Label><div className="flex items-center gap-2"><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', -1)} disabled={pcsQty === 0} className="h-9 w-9"><Minus className="w-4 h-4" /></Button><Input type="text" value={String(pcsQty)} onChange={(e) => { const sanitized = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0'; const newQuantity = Math.max(0, parseInt(sanitized) || 0); setQuantityDirect(product.id, 'pcs', newQuantity); }} className="w-16 text-center text-sm h-9" inputMode="numeric" pattern="[0-9]*" disabled={maxPcsCapacity === 0} /><Button type="button" variant="outline" size="icon" onClick={() => updateQuantity(product.id, 'pcs', 1)} disabled={pcsQty >= maxPcsCapacity || maxPcsCapacity === 0} className="h-9 w-9"><Plus className="w-4 h-4" /></Button></div></div>
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t"><div className="space-y-1"><p className="text-sm font-semibold text-warning">Available: {boxAvail} Box, {pcsAvail} pcs</p></div>{(boxQty + pcsQty) > 0 && (<div className="text-right"><p className="text-sm font-semibold text-success-green">Line Total: ₹{lineTotal.toFixed(2)}</p></div>)}</div>
@@ -801,19 +803,19 @@ const ShopBilling = () => {
                         </Card>
                       );
                     })}
-                   </div>
-                 </div>
+                  </div>
+                </div>
 
-                 {/* Total Amount - remains same */}
-                 <div className="bg-primary-light/20 border-2 border-primary rounded-lg p-4">
+                {/* Total Amount - remains same */}
+                <div className="bg-primary-light/20 border-2 border-primary rounded-lg p-4">
                   <div className="flex items-center justify-between"><span className="text-lg sm:text-xl font-bold text-foreground">Total Amount:</span><span className="text-2xl sm:text-3xl font-bold text-primary">₹{totalAmount.toFixed(2)}</span></div>
-                 </div>
-                 {/* Generate Bill Button - remains same */}
-                 <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
+                </div>
+                {/* Generate Bill Button - remains same */}
+                <div className="sticky bottom-3 sm:static bg-background/95 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-none p-1 sm:p-0 -mx-2 sm:mx-0 rounded-md sm:rounded-none">
                   <Button onClick={handleGenerateBill} variant="success" size="default" className="w-full h-10 sm:h-11 text-sm sm:text-base font-semibold touch-manipulation shadow sm:shadow-none" disabled={!shopName.trim() || !isValidForBilling() || !isValidPhone(shopPhone)}><Check className="w-5 h-5 mr-2" /> Generate Bill</Button>
-                 </div>
+                </div>
               </div>
-             </CardContent>
+            </CardContent>
           </Card>
         ) : (
           // Bill Preview & Print UI - Remains the same structure
@@ -855,53 +857,53 @@ const ShopBilling = () => {
         <div id="print-receipt-container" style={{ display: 'none' }}> {/* Initially hidden */}
           <div className="receipt-58mm">
             {/* Bill Header */}
-            <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-              <h1 style={{ margin: '0', fontSize: '14px', fontWeight: 'bold' }}>BHAVYA ENTERPRICE</h1>
-              <p style={{ margin: '0', fontSize: '10px', fontWeight: '600' }}>Sales Invoice</p>
-              <div style={{ marginTop: '2px', fontSize: '8px' }}>
-                <p style={{ margin: '0', lineHeight: '1.1' }}>Near Bala petrol pump</p>
-                <p style={{ margin: '0', lineHeight: '1.1' }}>Jambusar Bharuch road</p>
+            <div style={{ textAlign: 'center', marginBottom: '5px' }}>
+              <h1 style={{ margin: '0', fontSize: '18px', fontWeight: 'bold' }}>BHAVYA ENTERPRICE</h1>
+              <p style={{ margin: '0', fontSize: '12px', fontWeight: 'bold' }}>Sales Invoice</p>
+              <div style={{ marginTop: '3px', fontSize: '11px' }}>
+                <p style={{ margin: '0', lineHeight: '1.2' }}>Near Bala petrol pump</p>
+                <p style={{ margin: '0', lineHeight: '1.2' }}>Jambusar Bharuch road</p>
               </div>
-              <div style={{ marginTop: '2px', fontSize: '8px' }}>
-                <p style={{ margin: '0', lineHeight: '1.1' }}>Phone: 8866756059</p>
-                <p style={{ margin: '0', lineHeight: '1.1' }}>GSTIN: 24EVVPS8220P1ZF</p>
+              <div style={{ marginTop: '3px', fontSize: '11px' }}>
+                <p style={{ margin: '0', lineHeight: '1.2' }}>Phone: 8866756059</p>
+                <p style={{ margin: '0', lineHeight: '1.2' }}>GSTIN: 24EVVPS8220P1ZF</p>
               </div>
-              <div style={{ marginTop: '2px', fontSize: '8px' }}>
+              <div style={{ marginTop: '3px', fontSize: '10px' }}>
                 <p style={{ margin: '0' }}>Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                {(printSnapshot?.routeName || currentRouteName) && (<p style={{ margin: '0', fontWeight: 'bold' }}>Route: {printSnapshot?.routeName || currentRouteName}</p>)}
+                {(printSnapshot?.routeName || currentRouteName) && (<p style={{ margin: '0', fontWeight: 'bold', fontSize: '11px' }}>Route: {printSnapshot?.routeName || currentRouteName}</p>)}
               </div>
             </div>
             {/* Shop Details */}
-            <div style={{ marginBottom: '4px', paddingBottom: '2px', borderTop: '1px dashed black', borderBottom: '1px dashed black', paddingTop: '2px' }}>
-              <p style={{ fontSize: '9px', fontWeight: '600', margin: '0' }}>Shop: {printSnapshot?.shopName || shopName}</p>
-              {(printSnapshot?.shopAddress || shopAddress) && (<p style={{ fontSize: '8px', margin: '0' }}>Addr: {printSnapshot?.shopAddress || shopAddress}</p>)}
-              {(printSnapshot?.shopPhone || shopPhone) && (<p style={{ fontSize: '8px', margin: '0' }}>Ph: {printSnapshot?.shopPhone || shopPhone}</p>)}
+            <div style={{ marginBottom: '5px', paddingBottom: '3px', borderTop: '1px dashed black', borderBottom: '1px dashed black', paddingTop: '3px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 'bold', margin: '0' }}>Shop: {printSnapshot?.shopName || shopName}</p>
+              {(printSnapshot?.shopAddress || shopAddress) && (<p style={{ fontSize: '11px', margin: '0' }}>Addr: {printSnapshot?.shopAddress || shopAddress}</p>)}
+              {(printSnapshot?.shopPhone || shopPhone) && (<p style={{ fontSize: '11px', margin: '0' }}>Ph: {printSnapshot?.shopPhone || shopPhone}</p>)}
             </div>
             {/* Products Table */}
-            <div style={{ marginBottom: '4px' }}>
-              <table style={{ width: '100%', fontSize: '8px', borderCollapse: 'collapse' }}>
-                <thead><tr style={{ borderBottom: '1px dashed black' }}><th style={{ textAlign: 'left', padding: '1px 0', fontSize: '8px' }}>Item</th><th style={{ textAlign: 'center', padding: '1px 0', fontSize: '8px' }}>Qty</th><th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Rate</th><th style={{ textAlign: 'right', padding: '1px 0', fontSize: '8px' }}>Amt</th></tr></thead>
+            <div style={{ marginBottom: '5px' }}>
+              <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                <thead><tr style={{ borderBottom: '1px dashed black' }}><th style={{ textAlign: 'left', padding: '2px 0', fontSize: '11px' }}>Item</th><th style={{ textAlign: 'center', padding: '2px 0', fontSize: '11px' }}>Qty</th><th style={{ textAlign: 'right', padding: '2px 0', fontSize: '11px' }}>Rate</th><th style={{ textAlign: 'right', padding: '2px 0', fontSize: '11px' }}>Amt</th></tr></thead>
                 <tbody>
                   {(printSnapshot?.items || getSoldItems()).map((item, index) => (
                     <tr key={`${item.productId}-${item.unit}-${index}`}>
-                      <td style={{ padding: '1px 0', fontSize: '8px' }}>{item.productName}</td>
-                      <td style={{ padding: '1px 0', textAlign: 'center', fontSize: '8px' }}>{item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}</td>
-                      <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px' }}>₹{item.price.toFixed(2)}</td>
-                      <td style={{ padding: '1px 0', textAlign: 'right', fontSize: '8px', fontWeight: '600' }}>₹{item.total.toFixed(2)}</td>
+                      <td style={{ padding: '2px 0', fontSize: '11px' }}>{item.productName}</td>
+                      <td style={{ padding: '2px 0', textAlign: 'center', fontSize: '11px' }}>{item.quantity} {item.unit === 'box' ? 'Box' : 'pcs'}</td>
+                      <td style={{ padding: '2px 0', textAlign: 'right', fontSize: '11px' }}>₹{item.price.toFixed(2)}</td>
+                      <td style={{ padding: '2px 0', textAlign: 'right', fontSize: '11px', fontWeight: '600' }}>₹{item.total.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             {/* Total Section */}
-            <div style={{ borderTop: '1px dashed black', paddingTop: '2px', marginBottom: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: '11px', fontWeight: 'bold' }}>TOTAL:</span><span style={{ fontSize: '12px', fontWeight: 'bold' }}>₹{(printSnapshot?.total ?? calculateTotal()).toFixed(2)}</span></div>
-              <div style={{ fontSize: '8px', textAlign: 'right' }}>Items: {(printSnapshot?.items || getSoldItems()).reduce((sum, it) => sum + (it.quantity || 0), 0)}</div>
+            <div style={{ borderTop: '1px dashed black', paddingTop: '4px', marginBottom: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: '14px', fontWeight: 'bold' }}>TOTAL:</span><span style={{ fontSize: '16px', fontWeight: 'bold' }}>₹{(printSnapshot?.total ?? calculateTotal()).toFixed(2)}</span></div>
+              <div style={{ fontSize: '10px', textAlign: 'right' }}>Items: {(printSnapshot?.items || getSoldItems()).reduce((sum, it) => sum + (it.quantity || 0), 0)}</div>
             </div>
             {/* Footer */}
-            <div style={{ marginTop: '4px', paddingTop: '2px', borderTop: '1px dashed black', textAlign: 'center' }}>
-              <p style={{ fontSize: '9px', fontWeight: '600', margin: '0' }}>Thank you for your business!</p>
-              <p style={{ fontSize: '8px', margin: '0' }}>Have a great day!</p>
+            <div style={{ marginTop: '5px', paddingTop: '3px', borderTop: '1px dashed black', textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', fontWeight: '600', margin: '0' }}>Thank you for your business!</p>
+              <p style={{ fontSize: '10px', margin: '0' }}>Have a great day!</p>
             </div>
           </div>
         </div>,
@@ -919,14 +921,14 @@ const ShopBilling = () => {
           html, body { margin: 0 !important; padding: 0 !important; background-color: #fff !important; width: 58mm !important; }
           * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; }
           .print\\:hidden { display: none !important; }
-          .receipt-58mm { display: block !important; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 2mm !important; background: white !important; color: #000 !important; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; font-size: 9px !important; line-height: 1.15 !important; page-break-after: avoid !important; page-break-inside: avoid !important; box-sizing: border-box !important; }
+          .receipt-58mm { display: block !important; width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 2mm !important; background: white !important; color: #000 !important; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; font-size: 11px !important; line-height: 1.25 !important; page-break-after: avoid !important; page-break-inside: avoid !important; box-sizing: border-box !important; }
           .receipt-58mm * { color: #000 !important; border-color: #000 !important; box-shadow: none !important; border-radius: 0 !important; }
           .receipt-58mm p { margin: 0 !important; }
-          .receipt-58mm h1 { font-size: 12px !important; font-weight: bold !important; margin: 2px 0 !important; text-align: center !important; }
+          .receipt-58mm h1 { font-size: 16px !important; font-weight: bold !important; margin: 2px 0 !important; text-align: center !important; }
           .receipt-58mm table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; margin: 2px 0 !important; }
-          .receipt-58mm th, .receipt-58mm td { padding: 1px 2px !important; font-size: 9px !important; white-space: normal !important; word-break: break-word !important; overflow-wrap: anywhere !important; }
+          .receipt-58mm th, .receipt-58mm td { padding: 2px 2px !important; font-size: 11px !important; white-space: normal !important; word-break: break-word !important; overflow-wrap: anywhere !important; }
           .receipt-58mm th { font-weight: bold !important; border-bottom: 1px dashed black !important; }
-          .receipt-58mm th:nth-child(1), .receipt-58mm td:nth-child(1) { width: 52% !important; } .receipt-58mm th:nth-child(2), .receipt-58mm td:nth-child(2) { width: 14% !important; } .receipt-58mm th:nth-child(3), .receipt-58mm td:nth-child(3) { width: 16% !important; } .receipt-58mm th:nth-child(4), .receipt-58mm td:nth-child(4) { width: 18% !important; }
+          .receipt-58mm th:nth-child(1), .receipt-58mm td:nth-child(1) { width: 50% !important; } .receipt-58mm th:nth-child(2), .receipt-58mm td:nth-child(2) { width: 14% !important; } .receipt-58mm th:nth-child(3), .receipt-58mm td:nth-child(3) { width: 18% !important; } .receipt-58mm th:nth-child(4), .receipt-58mm td:nth-child(4) { width: 18% !important; }
           .receipt { width: 58mm !important; margin: 0 !important; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; color: #000 !important; }
           .print-container { padding: 0 !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
         }
